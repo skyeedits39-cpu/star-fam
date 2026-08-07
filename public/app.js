@@ -71,7 +71,17 @@ if (signupBtn) {
 
 socket.on('auth:success', (user) => {
   currentUser = user;
-  if (authOverlay) authOverlay.classList.add('hidden');
+  
+  if (authOverlay) {
+    authOverlay.style.display = 'none';
+    authOverlay.classList.add('hidden');
+  }
+
+  const mainApp = document.getElementById('main-app') || document.querySelector('.app-container');
+  if (mainApp) {
+    mainApp.classList.remove('hidden');
+    mainApp.style.display = 'flex';
+  }
   
   const profileUsername = document.getElementById('profile-username');
   const profileHandle = document.getElementById('profile-handle');
