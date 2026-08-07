@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedUser) {
         try {
             const userData = JSON.parse(savedUser);
-            // Attempt auto-login with stored identifier/pin
             socket.emit('auth:login', { identifier: userData.username, pin: userData.pin }, (res) => {
                 if (res.success) {
                     authOverlay.classList.add('hidden');
@@ -174,14 +173,28 @@ function toggleNotifBox() {
     if (box) box.classList.toggle('hidden');
 }
 
-function switchRoom(room) {
-    // Room switching logic handler placeholder
+function logoutUser() {
+    localStorage.removeItem('starFamUser');
+    sessionStorage.removeItem('starFamUser');
+
+    const profileModal = document.getElementById('profile-modal');
+    if (profileModal) profileModal.classList.add('hidden');
+
+    const appContainer = document.getElementById('app');
+    if (appContainer) appContainer.classList.add('hidden');
+
+    const authOverlay = document.getElementById('auth-overlay');
+    if (authOverlay) {
+        authOverlay.classList.remove('hidden');
+        authOverlay.style.display = 'flex';
+    }
+
+    setAuthMode('login');
+    window.location.reload();
 }
 
-function sendMessage() {
-    // Message sending handler placeholder
-}
-
+function switchRoom(room) {}
+function sendMessage() {}
 function handleKeyPress(e) {
     if (e.key === 'Enter') {
         sendMessage();
