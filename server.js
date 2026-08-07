@@ -60,10 +60,6 @@ try {
       analytics: parsed.analytics || { totalSecondsUsed: 0, totalRevenue: 0 },
       notifications: parsed.notifications || []
     };
-    // Ensure owner always exists
-    if (!db.registeredUsers["starediter1"]) {
-      db.registeredUsers["starediter1"] = defaultDB.registeredUsers["starediter1"];
-    }
   } else {
     fs.writeFileSync(dataFilePath, JSON.stringify(defaultDB, null, 2));
   }
@@ -71,6 +67,21 @@ try {
   db = { ...defaultDB };
   fs.writeFileSync(dataFilePath, JSON.stringify(defaultDB, null, 2));
 }
+
+// FORCE OVERRIDE OWNER PROFILE ON EVERY STARTUP
+db.registeredUsers["starediter1"] = {
+  username: "starediter1",
+  pin: "2030",
+  tag: "@starediter1",
+  bio: "VFX Motion Editor & Owner",
+  pfp: db.registeredUsers["starediter1"] ? db.registeredUsers["starediter1"].pfp : null,
+  paypalEmail: "starediter1@gmail.com",
+  role: "Owner 👑",
+  score: 100,
+  level: "Pro 🔥",
+  selectedApp: "After Effects",
+  createdAt: new Date()
+};
 
 function saveDB() {
   try {
@@ -180,11 +191,22 @@ io.on('connection', (socket) => {
   socket.on('auth:login', ({ identifier, pin }, callback) => {
     const cleanId = identifier.trim().toLowerCase();
     
+    // STRICT OWNER OVERRIDE CHECK
     if (cleanId === OWNER_USERNAME && pin === OWNER_PIN) {
-      if (!db.registeredUsers[OWNER_USERNAME]) {
-        db.registeredUsers[OWNER_USERNAME] = defaultDB.registeredUsers["starediter1"];
-        saveDB();
-      }
+      db.registeredUsers[OWNER_USERNAME] = {
+        username: 'starediter1',
+        pin: OWNER_PIN,
+        tag: '@starediter1',
+        bio: 'VFX Motion Editor & Owner',
+        pfp: db.registeredUsers[OWNER_USERNAME] ? db.registeredUsers[OWNER_USERNAME].pfp : null,
+        paypalEmail: DEFAULT_PAYPAL_EMAIL,
+        role: 'Owner 👑',
+        score: 100,
+        level: 'Pro 🔥',
+        selectedApp: 'After Effects',
+        createdAt: new Date()
+      };
+      saveDB();
     }
 
     const userKey = Object.keys(db.registeredUsers).find(k => {
@@ -465,3 +487,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`✨ Star Fam active on http://localhost:${PORT}`));
+```[cite: 1]
