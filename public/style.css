@@ -1,5 +1,5 @@
 /* ==========================================
-   STAR FAM 💜 - MAIN STYLESHEET
+   STAR FAM 💜 - MAIN STYLESHEET (DISCORD STYLE MOBILE LAYOUT)
    ================================---------- */
 
 :root {
@@ -164,7 +164,7 @@ body {
   padding: 10px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.85srem;
+  font-size: 0.85rem;
 }
 
 .btn-link {
@@ -177,7 +177,7 @@ body {
   margin: 10px auto 0 auto;
 }
 
-/* App Layout Grid */
+/* App Layout Grid (Desktop Default Side-by-Side) */
 .app-container {
   display: flex;
   width: 100vw;
@@ -532,43 +532,123 @@ body {
 }
 
 /* ==========================================
-   MOBILE RESPONSIVE STYLING (ALIGNED & VERTICAL)
+   MOBILE DISCORD-STYLE SIDE-BY-SIDE LAYOUT
    ================================---------- */
 
 @media (max-width: 768px) {
+  body {
+    overflow: hidden; /* Lock full screen like an app */
+  }
+
   .app-container {
-    flex-direction: column;
+    display: flex;
+    flex-direction: row !important; /* Forces side-by-side like Discord */
+    width: 100vw;
     height: 100vh;
     height: 100dvh;
-    overflow-y: auto;
     padding: 6px;
     gap: 6px;
+    overflow: hidden;
   }
 
   .sidebar {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 40vh;
-    overflow-y: auto;
-    padding: 10px;
+    width: 130px !important; /* Compact server list / left channel tab view like Discord mobile */
+    min-width: 130px;
+    height: 100% !important;
+    overflow-y: auto !important;
+    padding: 6px !important;
+    gap: 6px;
   }
 
-  .chat-area {
-    width: 100% !important;
-    flex: 1;
-    min-height: 50vh;
+  .brand h2 {
+    font-size: 0.85rem;
+  }
+
+  .profile-preview {
+    padding: 4px;
+    gap: 6px;
+  }
+
+  .avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 0.7rem;
+  }
+
+  .profile-info span {
+    font-size: 0.7rem;
+  }
+
+  .profile-info small, .badge, .section-title {
+    display: none; /* Hide clutter on narrow mobile channels column to match clean mobile chat apps */
   }
 
   .chat-selector {
     display: flex;
     flex-direction: column !important;
     align-items: stretch !important;
+    gap: 3px;
   }
 
   .nav-btn {
     text-align: left !important;
     justify-content: flex-start !important;
     width: 100% !important;
+    font-size: 0.72rem !important;
+    padding: 6px 6px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .online-users {
+    max-height: 80px;
+  }
+
+  .chat-area {
+    flex: 1 !important; /* Takes up remaining right side */
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    padding: 8px 10px;
+  }
+
+  .chat-header h2 {
+    font-size: 0.85rem;
+  }
+
+  .room-desc {
+    font-size: 0.65rem;
+  }
+
+  .messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+
+  .msg-bubble {
+    max-width: 85%;
+    font-size: 0.78rem;
+    padding: 8px 10px;
+  }
+
+  .chat-input-area {
+    padding: 8px;
+  }
+
+  .input-row input[type="text"] {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .btn-send {
+    padding: 8px 12px;
+    font-size: 0.8rem;
   }
 }
 ```[cite: 1]
