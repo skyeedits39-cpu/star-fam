@@ -313,7 +313,7 @@ io.on('connection', (socket) => {
 
   socket.on('poll:fetch', (room, callback) => {
     if (!Array.isArray(db.polls)) db.polls = [];
-    const active = db.polls.polls ? [] : db.polls.filter(p => p.room === room);
+    const active = db.polls.filter(p => p.room === room);
     if (typeof callback === 'function') callback(active);
   });
 

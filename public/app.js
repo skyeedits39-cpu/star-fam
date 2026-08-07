@@ -1,20 +1,14 @@
-/* ==========================================
-   STAR FAM 💜 - MAIN CLIENT APPLICATION JAVASCRIPT
-   ================================---------- */
-
 const socket = io();
 
 let currentUser = null;
 let currentRoom = 'global';
 
-// DOM Elements
 const authOverlay = document.getElementById('auth-overlay');
 const loginTabBtn = document.getElementById('login-tab-btn');
 const signupTabBtn = document.getElementById('signup-tab-btn');
 const loginForm = document.getElementById('login-form');
 const signupForm = document.getElementById('signup-form');
 
-// Switch Auth Tabs
 function switchAuthTab(tab) {
   if (tab === 'login') {
     if (loginTabBtn) loginTabBtn.classList.add('active');
@@ -29,16 +23,15 @@ function switchAuthTab(tab) {
   }
 }
 
-// Safe Login Handler
 const loginBtn = document.getElementById('login-btn');
 if (loginBtn) {
   loginBtn.addEventListener('click', (e) => {
     e.preventDefault();
-    const identifierInput = document.getElementById('login-username');
-    const pinInput = document.getElementById('login-pin');
+    const identifierEl = document.getElementById('login-username');
+    const pinEl = document.getElementById('login-pin');
     
-    const identifier = identifierInput ? (identifierInput.value || identifierInput.defaultValue || "").trim() : '';
-    const pin = pinInput ? (pinInput.value || pinInput.defaultValue || "").trim() : '';
+    const identifier = identifierEl ? identifierEl.value.trim() : '';
+    const pin = pinEl ? pinEl.value.trim() : '';
 
     if (!identifier || !pin) {
       alert('Please enter both username/tag and PIN.');
@@ -53,16 +46,15 @@ if (loginBtn) {
   });
 }
 
-// Safe Signup Handler
 const signupBtn = document.getElementById('signup-btn');
 if (signupBtn) {
   signupBtn.addEventListener('click', (e) => {
     e.preventDefault();
-    const usernameInput = document.getElementById('signup-username');
-    const pinInput = document.getElementById('signup-pin');
+    const usernameEl = document.getElementById('signup-username');
+    const pinEl = document.getElementById('signup-pin');
     
-    const username = usernameInput ? (usernameInput.value || usernameInput.defaultValue || "").trim() : '';
-    const pin = pinInput ? (pinInput.value || pinInput.defaultValue || "").trim() : '';
+    const username = usernameEl ? usernameEl.value.trim() : '';
+    const pin = pinEl ? pinEl.value.trim() : '';
 
     if (!username || !pin) {
       alert('Please fill out all fields.');
@@ -77,7 +69,6 @@ if (signupBtn) {
   });
 }
 
-// Auth Success listener
 socket.on('auth:success', (user) => {
   currentUser = user;
   if (authOverlay) authOverlay.classList.add('hidden');
@@ -95,7 +86,6 @@ socket.on('auth:success', (user) => {
   loadRoomContent();
 });
 
-// Navigation Rooms / Tabs
 document.querySelectorAll('.nav-btn').forEach(btn => {
   btn.addEventListener('click', (e) => {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -124,7 +114,6 @@ function loadRoomContent() {
   });
 }
 
-// Send Message
 function sendMessage() {
   const input = document.getElementById('message-input');
   if (!input) return;
@@ -150,7 +139,6 @@ if (messageInput) {
   });
 }
 
-// Incoming Messages
 socket.on('chat:message', (msg) => {
   if (msg.targetRoom === currentRoom) {
     renderMessage(msg);
@@ -163,7 +151,6 @@ socket.on('chat:refresh', ({ room }) => {
   }
 });
 
-// --- RENDER MESSAGES & POLLS WITH CLICK-TO-VOTE & PROPER PERMISSIONS ---
 function renderMessage(msg) {
   const container = document.getElementById('messages-container');
   if (!container || !currentUser) return;

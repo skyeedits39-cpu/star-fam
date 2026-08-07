@@ -1,0 +1,52 @@
+{
+  "registeredUsers": {
+    "starediter1": {
+      "username": "starediter1",
+      "pin": "2030",
+      "tag": "@starediter1",
+      "bio": "VFX Motion Editor & Owner",
+      "pfp": null,
+      "paypalEmail": "starediter1@gmail.com",
+      "role": "Owner 👑",
+      "score": 100,
+      "level": "Pro 🔥",
+      "selectedApp": "After Effects",
+      "createdAt": "2026-08-07T14:48:27.058Z"
+    }
+  },
+  "chatHistory": {
+    "global": [],
+    "creator": {},
+    "editing-comp": []
+  },
+  "privateDMs": {},
+  "polls": [],
+  "assets": [
+    {
+      "id": 1,
+      "name": "Cinematic Whoosh",
+      "category": "Audio FX",
+      "url": "https://www.soundjay.com/free-music/sounds/barn-beat-01.mp3",
+      "uploader": "starediter1"
+    },
+    {
+      "id": 2,
+      "name": "Sub Bass Drop",
+      "category": "Audio FX",
+      "url": "https://www.soundjay.com/button/sounds/button-1.mp3",
+      "uploader": "starediter1"
+    },
+    {
+      "id": 3,
+      "name": "Film Grain Texture",
+      "category": "Overlays",
+      "url": "https://www.w3schools.com/html/mov_bbb.mp4",
+      "uploader": "starediter1"
+    }
+  ],
+  "analytics": {
+    "totalSecondsUsed": 0,
+    "totalRevenue": 0
+  },
+  "notifications": []
+}
