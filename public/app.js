@@ -17,71 +17,80 @@ const signupForm = document.getElementById('signup-form');
 // Switch Auth Tabs
 function switchAuthTab(tab) {
   if (tab === 'login') {
-    loginTabBtn.classList.add('active');
-    signupTabBtn.classList.remove('active');
-    loginForm.classList.remove('hidden');
-    signupForm.classList.add('hidden');
+    if (loginTabBtn) loginTabBtn.classList.add('active');
+    if (signupTabBtn) signupTabBtn.classList.remove('active');
+    if (loginForm) loginForm.classList.remove('hidden');
+    if (signupForm) signupForm.classList.add('hidden');
   } else {
-    signupTabBtn.classList.add('active');
-    loginTabBtn.classList.remove('active');
-    signupForm.classList.remove('hidden');
-    loginForm.classList.add('hidden');
+    if (signupTabBtn) signupTabBtn.classList.add('active');
+    if (loginTabBtn) loginTabBtn.classList.remove('active');
+    if (signupForm) signupForm.classList.remove('hidden');
+    if (loginForm) loginForm.classList.add('hidden');
   }
 }
 
-// Ultra-Robust Login Handler (Handles browser autofill & value tracking)
-document.getElementById('login-btn').addEventListener('click', (e) => {
-  e.preventDefault();
-  
-  const identifierInput = document.getElementById('login-username');
-  const pinInput = document.getElementById('login-pin');
-  
-  // Directly pull value, handling autofill states safely
-  const identifier = (identifierInput.value || identifierInput.defaultValue || "").trim();
-  const pin = (pinInput.value || pinInput.defaultValue || "").trim();
+// Safe Login Handler
+const loginBtn = document.getElementById('login-btn');
+if (loginBtn) {
+  loginBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const identifierInput = document.getElementById('login-username');
+    const pinInput = document.getElementById('login-pin');
+    
+    const identifier = identifierInput ? (identifierInput.value || identifierInput.defaultValue || "").trim() : '';
+    const pin = pinInput ? (pinInput.value || pinInput.defaultValue || "").trim() : '';
 
-  if (!identifier || !pin) {
-    alert('Please enter both username/tag and PIN.');
-    return;
-  }
-
-  socket.emit('auth:login', { identifier, pin }, (response) => {
-    if (response && !response.success) {
-      alert(response.message);
+    if (!identifier || !pin) {
+      alert('Please enter both username/tag and PIN.');
+      return;
     }
+
+    socket.emit('auth:login', { identifier, pin }, (response) => {
+      if (response && !response.success) {
+        alert(response.message);
+      }
+    });
   });
-});
+}
 
-// Ultra-Robust Signup Handler
-document.getElementById('signup-btn').addEventListener('click', (e) => {
-  e.preventDefault();
-  
-  const usernameInput = document.getElementById('signup-username');
-  const pinInput = document.getElementById('signup-pin');
-  
-  const username = (usernameInput.value || usernameInput.defaultValue || "").trim();
-  const pin = (pinInput.value || pinInput.defaultValue || "").trim();
+// Safe Signup Handler
+const signupBtn = document.getElementById('signup-btn');
+if (signupBtn) {
+  signupBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const usernameInput = document.getElementById('signup-username');
+    const pinInput = document.getElementById('signup-pin');
+    
+    const username = usernameInput ? (usernameInput.value || usernameInput.defaultValue || "").trim() : '';
+    const pin = pinInput ? (pinInput.value || pinInput.defaultValue || "").trim() : '';
 
-  if (!username || !pin) {
-    alert('Please fill out all fields.');
-    return;
-  }
-
-  socket.emit('auth:signup', { username, pin }, (response) => {
-    if (response && !response.success) {
-      alert(response.message);
+    if (!username || !pin) {
+      alert('Please fill out all fields.');
+      return;
     }
+
+    socket.emit('auth:signup', { username, pin }, (response) => {
+      if (response && !response.success) {
+        alert(response.message);
+      }
+    });
   });
-});
+}
 
 // Auth Success listener
 socket.on('auth:success', (user) => {
   currentUser = user;
-  authOverlay.classList.add('hidden');
-  document.getElementById('profile-username').textContent = user.username;
-  document.getElementById('profile-handle').textContent = user.tag || `@${user.username}`;
-  document.getElementById('profile-badge').textContent = user.role;
-  document.getElementById('profile-avatar').textContent = user.username.charAt(0).toUpperCase();
+  if (authOverlay) authOverlay.classList.add('hidden');
+  
+  const profileUsername = document.getElementById('profile-username');
+  const profileHandle = document.getElementById('profile-handle');
+  const profileBadge = document.getElementById('profile-badge');
+  const profileAvatar = document.getElementById('profile-avatar');
+
+  if (profileUsername) profileUsername.textContent = user.username;
+  if (profileHandle) profileHandle.textContent = user.tag || `@${user.username}`;
+  if (profileBadge) profileBadge.textContent = user.role;
+  if (profileAvatar) profileAvatar.textContent = user.username.charAt(0).toUpperCase();
   
   loadRoomContent();
 });
@@ -94,7 +103,8 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     targetBtn.classList.add('active');
     
     currentRoom = targetBtn.dataset.room || 'global';
-    document.getElementById('current-room-title').textContent = targetBtn.textContent.trim();
+    const roomTitle = document.getElementById('current-room-title');
+    if (roomTitle) roomTitle.textContent = targetBtn.textContent.trim();
     
     loadRoomContent();
   });
@@ -102,6 +112,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
 
 function loadRoomContent() {
   const container = document.getElementById('messages-container');
+  if (!container) return;
   container.innerHTML = '';
   
   socket.emit('chat:fetch_history', { room: currentRoom }, (messages) => {
@@ -116,6 +127,7 @@ function loadRoomContent() {
 // Send Message
 function sendMessage() {
   const input = document.getElementById('message-input');
+  if (!input) return;
   const text = input.value.trim();
 
   if (!text) return;
@@ -128,10 +140,15 @@ function sendMessage() {
   input.value = '';
 }
 
-document.getElementById('send-btn').addEventListener('click', sendMessage);
-document.getElementById('message-input').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') sendMessage();
-});
+const sendBtn = document.getElementById('send-btn');
+if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+
+const messageInput = document.getElementById('message-input');
+if (messageInput) {
+  messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+  });
+}
 
 // Incoming Messages
 socket.on('chat:message', (msg) => {
@@ -149,6 +166,8 @@ socket.on('chat:refresh', ({ room }) => {
 // --- RENDER MESSAGES & POLLS WITH CLICK-TO-VOTE & PROPER PERMISSIONS ---
 function renderMessage(msg) {
   const container = document.getElementById('messages-container');
+  if (!container || !currentUser) return;
+  
   const row = document.createElement('div');
   row.className = `message-row ${msg.sender === currentUser.username ? 'my-msg' : ''}`;
 
@@ -221,17 +240,24 @@ socket.on('poll:updated', ({ room }) => {
 });
 
 function openPollModal() {
-  document.getElementById('poll-modal').classList.remove('hidden');
+  const modal = document.getElementById('poll-modal');
+  if (modal) modal.classList.remove('hidden');
 }
 
 function closePollModal() {
-  document.getElementById('poll-modal').classList.add('hidden');
+  const modal = document.getElementById('poll-modal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function submitPoll() {
-  const question = document.getElementById('poll-question').value.trim();
-  const opt1 = document.getElementById('poll-opt1').value.trim();
-  const opt2 = document.getElementById('poll-opt2').value.trim();
+  const qEl = document.getElementById('poll-question');
+  const o1El = document.getElementById('poll-opt1');
+  const o2El = document.getElementById('poll-opt2');
+  
+  if (!qEl || !o1El || !o2El) return;
+  const question = qEl.value.trim();
+  const opt1 = o1El.value.trim();
+  const opt2 = o2El.value.trim();
 
   if (!question || !opt1 || !opt2) {
     alert('Please enter a question and at least 2 options.');
@@ -239,7 +265,8 @@ function submitPoll() {
   }
 
   const options = [opt1, opt2];
-  const opt3 = document.getElementById('poll-opt3').value.trim();
+  const opt3El = document.getElementById('poll-opt3');
+  const opt3 = opt3El ? opt3El.value.trim() : '';
   if (opt3) options.push(opt3);
 
   socket.emit('poll:create', {
@@ -254,7 +281,7 @@ function submitPoll() {
 function fetchAssets() {
   socket.emit('asset:fetch', (assets) => {
     const listContainer = document.getElementById('assets-list-container');
-    if (!listContainer) return;
+    if (!listContainer || !currentUser) return;
     listContainer.innerHTML = '';
     assets.forEach(asset => {
       const canDeleteAsset = currentUser.username === asset.uploader || currentUser.role.includes('Owner');
