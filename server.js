@@ -100,19 +100,41 @@ io.on('connection', (socket) => {
     const cleanTag = (tag || `@${username}`).trim();
 
     if (cleanUser === OWNER_USERNAME && pin !== OWNER_PIN) {
-      return callback({ success: false, message: '⛔ Reserved for Owner! Incorrect PIN.' });
-    }
-    if (db.registeredUsers[cleanUser]) {
-      return callback({ success: false, message: '❌ Account username already exists! Please Log In.' });
+      return callback({ success: false, message: '⛔ Reserved for Owner! Incorrect PIN (Use 2030).' });
     }
 
-    db.registeredUsers[cleanUser] = {
-      username: cleanUser === OWNER_USERNAME ? 'starediter1' : username.trim(),
-      pin, tag: cleanTag, bio: bio || 'VFX Motion Editor', pfp: pfp || null,
-      paypalEmail: cleanUser === OWNER_USERNAME ? DEFAULT_PAYPAL_EMAIL : '',
-      role: cleanUser === OWNER_USERNAME ? 'Owner 👑' : 'Editor',
-      score: 0, level: 'Novice', selectedApp: 'After Effects', createdAt: new Date()
-    };
+    if (cleanUser === OWNER_USERNAME) {
+      db.registeredUsers[cleanUser] = {
+        username: 'starediter1',
+        pin: OWNER_PIN,
+        tag: cleanTag || '@starediter1',
+        bio: bio || 'VFX Motion Editor & Owner',
+        pfp: pfp || null,
+        paypalEmail: DEFAULT_PAYPAL_EMAIL,
+        role: 'Owner 👑',
+        score: 100,
+        level: 'Pro 🔥',
+        selectedApp: 'After Effects',
+        createdAt: new Date()
+      };
+    } else {
+      if (db.registeredUsers[cleanUser]) {
+        return callback({ success: false, message: '❌ Account username already exists! Please Log In.' });
+      }
+      db.registeredUsers[cleanUser] = {
+        username: username.trim(),
+        pin,
+        tag: cleanTag,
+        bio: bio || 'VFX Motion Editor',
+        pfp: pfp || null,
+        paypalEmail: '',
+        role: 'Editor',
+        score: 0,
+        level: 'Novice',
+        selectedApp: 'After Effects',
+        createdAt: new Date()
+      };
+    }
 
     saveDB();
     const userData = db.registeredUsers[cleanUser];
@@ -134,6 +156,26 @@ io.on('connection', (socket) => {
 
   socket.on('auth:login', ({ identifier, pin }, callback) => {
     const cleanId = identifier.trim().toLowerCase();
+    
+    if (cleanId === OWNER_USERNAME && pin === OWNER_PIN) {
+      if (!db.registeredUsers[OWNER_USERNAME]) {
+        db.registeredUsers[OWNER_USERNAME] = {
+          username: 'starediter1',
+          pin: OWNER_PIN,
+          tag: '@starediter1',
+          bio: 'VFX Motion Editor & Owner',
+          pfp: null,
+          paypalEmail: DEFAULT_PAYPAL_EMAIL,
+          role: 'Owner 👑',
+          score: 100,
+          level: 'Pro 🔥',
+          selectedApp: 'After Effects',
+          createdAt: new Date()
+        };
+        saveDB();
+      }
+    }
+
     const userKey = Object.keys(db.registeredUsers).find(k => {
       const u = db.registeredUsers[k];
       return k === cleanId || u.tag.toLowerCase() === cleanId;
@@ -141,7 +183,13 @@ io.on('connection', (socket) => {
 
     if (!userKey) return callback({ success: false, message: '❌ Account not found!' });
     const userData = db.registeredUsers[userKey];
+    
     if (userData.pin !== pin) return callback({ success: false, message: '❌ Incorrect PIN!' });
+
+    if (userKey === OWNER_USERNAME) {
+      userData.role = 'Owner 👑';
+      userData.pin = OWNER_PIN;
+    }
 
     activeSockets[socket.id] = {
       socketId: socket.id, username: userData.username, tag: userData.tag,
@@ -406,3 +454,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`✨ Star Fam active on http://localhost:${PORT}`));
+```[cite: 1]
