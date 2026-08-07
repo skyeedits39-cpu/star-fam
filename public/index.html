@@ -126,7 +126,8 @@
         <button class="btn-primary" onclick="saveProfileChanges()">Save Changes ✨</button>
       </div>
 
-      <div id="creator-options" class="creator-options hidden">
+      <!-- RESTORED SUPPORT & COMMISSIONS SECTION FOR ALL USERS -->
+      <div id="creator-options" class="creator-options">
         <hr class="divider">
         <h3>✨ Support & Commissions</h3>
         <div class="option-box glass-box">
@@ -134,15 +135,15 @@
           <input type="text" id="donate-msg" placeholder="Custom message for creator..." style="width:100%; margin-bottom:6px; padding:6px;">
           <div class="donate-input-wrapper">
             <span>$</span>
-            <input type="number" id="donate-amount" min="1" placeholder="Amount" value="5">
+            <input type="number" id="donate-amount" placeholder="Amount" value="5">
             <button class="btn-paypal" onclick="processPayment('donate')">Donate with PayPal</button>
           </div>
         </div>
         <div class="option-box glass-box">
           <h4>🎬 Pay for Personal Edit ($3 USD)</h4>
-          <div class="edit-options">
-            <button class="btn-service" onclick="processPayment('velocity')">⚡ Velocity Edit ($3)</button>
-            <button class="btn-service" onclick="processPayment('tiktok')">🎵 TikTok Edit ($3)</button>
+          <div class="edit-options" style="display:flex; gap:6px; margin-top:6px;">
+            <button class="btn-service" onclick="processPayment('velocity')" style="flex:1; padding:8px; background:var(--accent); border:none; border-radius:6px; color:#fff; cursor:pointer;">⚡ Velocity Edit ($3)</button>
+            <button class="btn-service" onclick="processPayment('tiktok')" style="flex:1; padding:8px; background:var(--accent); border:none; border-radius:6px; color:#fff; cursor:pointer;">🎵 TikTok Edit ($3)</button>
           </div>
         </div>
       </div>
@@ -337,16 +338,10 @@
 
       <div class="messages-container" id="messages-container"></div>
 
-      <!-- REPLY BAR -->
-      <div id="reply-bar" class="reply-bar hidden">
-        <span id="reply-text">Replying...</span>
-        <button onclick="cancelReply()" style="background:none; border:none; color:#fff; cursor:pointer;">❌</button>
-      </div>
-
       <footer class="chat-input-area">
         <div class="input-row">
-          <input type="file" id="media-input" accept="image/*,video/*,audio/*" style="display:none" onchange="uploadFile('media')">
-          <input type="file" id="doc-input" style="display:none" onchange="uploadFile('doc')">
+          <input type="file" id="media-input" accept="image/*,video/*,audio/*" style="display:none">
+          <input type="file" id="doc-input" style="display:none">
           
           <button class="icon-btn" onclick="document.getElementById('media-input').click()" title="Upload Photo/Video">📷</button>
           <button class="icon-btn" onclick="document.getElementById('doc-input').click()" title="Upload File/Document">📎</button>
