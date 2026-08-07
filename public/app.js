@@ -1,406 +1,229 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const socket = io();
+/* ==========================================
+   STAR FAM 💜 - MAIN CLIENT APPLICATION JAVASCRIPT
+   ================================---------- */
 
-    let currentUserData = null;
-    let currentRoom = 'creator';
-    let targetDMUser = null;
-    let activePollsData = [];
+const socket = io();
 
-    const savedUser = localStorage.getItem('starFamUser') || sessionStorage.getItem('starFamUser');
-    const authOverlay = document.getElementById('auth-overlay');
-    const appContainer = document.getElementById('app');
+let currentUser = null;
+let currentRoom = 'Community Lounge';
 
-    if (savedUser) {
-        try {
-            const userData = JSON.parse(savedUser);
-            socket.emit('auth:login', { identifier: userData.username, pin: userData.pin }, (res) => {
-                if (res.success) {
-                    // Success handled in socket listener
-                } else {
-                    localStorage.removeItem('starFamUser');
-                    sessionStorage.removeItem('starFamUser');
-                }
-            });
-        } catch (e) {
-            localStorage.removeItem('starFamUser');
-        }
-    }
+// DOM Elements
+const authOverlay = document.getElementById('auth-overlay');
+const loginTabBtn = document.getElementById('login-tab-btn');
+const signupTabBtn = document.getElementById('signup-tab-btn');
+const loginForm = document.getElementById('login-form');
+const signupForm = document.getElementById('signup-form');
 
-    socket.on('auth:success', (user) => {
-        currentUserData = user;
-        authOverlay.classList.add('hidden');
-        appContainer.classList.remove('hidden');
+// Switch Auth Tabs
+function switchAuthTab(tab) {
+  if (tab === 'login') {
+    loginTabBtn.classList.add('active');
+    signupTabBtn.classList.remove('active');
+    loginForm.classList.remove('hidden');
+    signupForm.classList.add('hidden');
+  } else {
+    signupTabBtn.classList.add('active');
+    loginTabBtn.classList.remove('active');
+    signupForm.classList.remove('hidden');
+    loginForm.classList.add('hidden');
+  }
+}
 
-        document.getElementById('my-name').innerText = user.username;
-        document.getElementById('my-tag').innerText = user.tag;
-        document.getElementById('my-role').innerText = user.role;
-        if (user.pfp) {
-            document.getElementById('my-avatar').innerHTML = `<img src="${user.pfp}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-        }
+// Login Handler
+document.getElementById('login-btn').addEventListener('click', () => {
+  const username = document.getElementById('login-username').value.trim();
+  const pin = document.getElementById('login-pin').value.trim();
 
-        // Populate profile modal details matching video
-        document.getElementById('modal-username').innerText = user.username;
-        document.getElementById('modal-tag').innerText = user.tag;
-        document.getElementById('modal-role').innerText = user.role;
-        document.getElementById('modal-bio').innerText = user.bio;
-        if (user.pfp) {
-            document.getElementById('modal-pfp').innerHTML = `<img src="${user.pfp}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-        }
+  if (!username || !pin) {
+    alert('Please enter both username and PIN.');
+    return;
+  }
 
-        if (user.isOwner || user.username.toLowerCase() === 'starediter1') {
-            document.getElementById('btn-analytics').classList.remove('hidden');
-            document.getElementById('btn-notif-bell').classList.remove('hidden');
-            document.getElementById('edit-profile-section').classList.remove('hidden');
-            document.getElementById('edit-tag').value = user.tag;
-            document.getElementById('edit-bio').value = user.bio;
-            document.getElementById('edit-paypal').value = user.paypalEmail || '';
-        } else {
-            document.getElementById('creator-options').classList.remove('hidden');
-        }
-
-        switchRoom('creator');
-    });
-
-    // Form Handling: Login
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const identifier = document.getElementById('login-id').value.trim();
-            const pin = document.getElementById('login-pin').value.trim();
-
-            socket.emit('auth:login', { identifier, pin }, (res) => {
-                if (!res.success) {
-                    alert(res.message || 'Login failed.');
-                }
-            });
-        });
-    }
-
-    // Form Handling: Sign Up
-    const signupForm = document.getElementById('signup-form');
-    if (signupForm) {
-        signupForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const username = document.getElementById('signup-username').value.trim();
-            const pin = document.getElementById('signup-pin').value.trim();
-            const tag = document.getElementById('signup-tag').value.trim();
-            const bio = document.getElementById('signup-bio').value.trim();
-            const pfp = document.getElementById('signup-pfp').value.trim();
-
-            socket.emit('auth:signup', { username, pin, tag, bio, pfp }, (res) => {
-                if (res.success) {
-                    localStorage.setItem('starFamUser', JSON.stringify({ username, pin }));
-                } else {
-                    alert(res.message || 'Sign up failed.');
-                }
-            });
-        });
-    }
-
-    // Chat / Messages Sync Listeners
-    socket.on('chat:message', (msg) => {
-        if (currentRoom === msg.targetRoom) {
-            appendMessage(msg);
-        }
-    });
-
-    socket.on('chat:creator_sync', (msg) => {
-        if (currentRoom === 'creator') {
-            appendMessage(msg);
-        }
-    });
-
-    socket.on('chat:dm_sync', ({ dmKey, payload }) => {
-        if (currentRoom.startsWith('dm:') && currentRoom.split('dm:')[1] === targetDMUser) {
-            appendMessage(payload);
-        }
-    });
-
-    socket.on('chat:refresh', ({ room }) => {
-        if (currentRoom === room) {
-            loadChatHistory();
-        }
-    });
-
-    socket.on('users:update', (users) => {
-        const list = document.getElementById('user-list');
-        if (!list) return;
-        list.innerHTML = '';
-        users.forEach(u => {
-            if (currentUserData && u.username === currentUserData.username) return;
-            const li = document.createElement('li');
-            li.style.cursor = 'pointer';
-            li.style.padding = '6px';
-            li.innerHTML = `🟢 ${u.username} <small style="color:var(--text-muted);">${u.tag}</small>`;
-            li.onclick = () => startDM(u.username);
-            list.appendChild(li);
-        });
-    });
-
-    socket.on('poll:updated', ({ room }) => {
-        if (currentRoom === room) {
-            fetchPollsForRoom(room);
-        }
-    });
-
-    window.switchRoom = function(room, dmUser = null) {
-        currentRoom = room;
-        targetDMUser = dmUser;
-
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        if (room === 'creator') document.getElementById('btn-creator').classList.add('active');
-        if (room === 'global') document.getElementById('btn-global').classList.add('active');
-        if (room === 'editing-comp') document.getElementById('btn-comp').classList.add('active');
-
-        const roomTitle = document.getElementById('room-title');
-        const roomDesc = document.getElementById('room-desc');
-        const pollBtn = document.getElementById('btn-create-poll');
-
-        if (room === 'creator') {
-            roomTitle.innerText = '👑 Creator Direct Chat';
-            roomDesc.innerText = 'Direct private communication line with @starediter1';
-            pollBtn.classList.add('hidden');
-        } else if (room === 'global') {
-            roomTitle.innerText = '🌐 Community Lounge';
-            roomDesc.innerText = 'Public lounge for presets, edits & polls';
-            pollBtn.classList.remove('hidden');
-        } else if (room === 'editing-comp') {
-            roomTitle.innerText = '🏆 Editing Comp';
-            roomDesc.innerText = 'Official Editing competition channel!';
-            pollBtn.classList.remove('hidden');
-        } else if (room.startsWith('dm:')) {
-            roomTitle.innerText = `💬 Private Chat with @${dmUser}`;
-            roomDesc.innerText = 'Secure end-to-end direct message';
-            pollBtn.classList.add('hidden');
-        }
-
-        loadChatHistory();
-        fetchPollsForRoom(room === 'creator' ? 'creator' : room);
-    };
-
-    function loadChatHistory() {
-        const container = document.getElementById('messages-container');
-        container.innerHTML = '';
-        socket.emit('chat:fetch_history', { room: currentRoom, targetUser: targetDMUser }, (history) => {
-            if (Array.isArray(history)) {
-                history.forEach(m => appendMessage(m));
-            }
-        });
-    }
-
-    function appendMessage(msg) {
-        const container = document.getElementById('messages-container');
-        const div = document.createElement('div');
-        div.className = `message-row ${msg.sender === (currentUserData ? currentUserData.username : '') ? 'my-msg' : ''}`;
-        
-        let attachmentHtml = '';
-        if (msg.attachment) {
-            if (msg.attachment.type === 'image') {
-                attachmentHtml = `<br><img src="${msg.attachment.url}" style="max-width:200px;border-radius:6px;margin-top:6px;">`;
-            } else {
-                attachmentHtml = `<br><a href="${msg.attachment.url}" target="_blank" style="color:var(--accent-light);">📎 ${msg.attachment.name}</a>`;
-            }
-        }
-
-        div.innerHTML = `
-            <div class="msg-bubble glass-box">
-                <div style="display:flex; justify-content:space-between; gap:10px;">
-                    <strong>${msg.sender}</strong>
-                    <span style="font-size:0.65rem; color:var(--text-muted);">${msg.timestamp}</span>
-                </div>
-                <div style="margin-top:4px;">${msg.text}</div>
-                ${attachmentHtml}
-            </div>
-        `;
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    }
-
-    window.sendMessage = function() {
-        const input = document.getElementById('message-input');
-        const text = input.value.trim();
-        if (!text) return;
-
-        socket.emit('chat:send', {
-            targetRoom: currentRoom.startsWith('dm:') ? `dm:${targetDMUser}` : currentRoom,
-            text
-        });
-        input.value = '';
-    };
-
-    window.fetchPollsForRoom = function(room) {
-        socket.emit('poll:fetch', room, (polls) => {
-            activePollsData = polls;
-            renderActivePoll();
-        });
-    };
-
-    function renderActivePoll() {
-        const display = document.getElementById('active-poll-display');
-        if (!display) return;
-        if (!activePollsData || activePollsData.length === 0) {
-            display.innerHTML = '';
-            display.classList.remove('active');
-            return;
-        }
-
-        display.classList.add('active');
-        const poll = activePollsData[activePollsData.length - 1]; // Show latest poll
-        let optionsHtml = '';
-        poll.options.forEach((opt, idx) => {
-            const votesCount = opt.votes ? opt.votes.length : 0;
-            optionsHtml += `
-                <button class="poll-option-btn glass-box" onclick="votePoll('${poll.id}', ${idx})" style="width:150%; margin:4px 0; text-align:left; padding:8px; cursor:pointer;">
-                    ${opt.text} <span style="float:right; color:var(--accent-light);">${votesCount} votes</span>
-                </button>
-            `;
-        });
-
-        display.innerHTML = `
-            <div class="poll-card glass-panel" style="padding:10px; margin-bottom:10px; border:1px solid var(--accent);">
-                <h4 style="color:var(--accent-light);">📊 Poll by @${poll.creator}: ${poll.question}</h4>
-                <div style="margin-top:6px;">${optionsHtml}</div>
-            </div>
-        `;
-    }
-
-    window.votePoll = function(pollId, optionIdx) {
-        socket.emit('poll:vote', { pollId, optionIdx });
-    };
-
-    window.submitNewPoll = function() {
-        const q = document.getElementById('poll-q-input').value.trim();
-        const optInputs = document.querySelectorAll('.poll-opt-input');
-        const options = Array.from(optInputs).map(i => i.value.trim()).filter(v => v !== '');
-
-        if (!q || options.length < 2) {
-            alert('Please enter a question and at least 2 options.');
-            return;
-        }
-
-        socket.emit('poll:create', { room: currentRoom, question: q, options });
-        closePollModal();
-    };
-
-    window.startDM = function(username) {
-        switchRoom(`dm:${username}`, username);
-    };
-
-    window.saveProfileChanges = function() {
-        const tag = document.getElementById('edit-tag').value.trim();
-        const bio = document.getElementById('edit-bio').value.trim();
-        const paypalEmail = document.getElementById('edit-paypal').value.trim();
-
-        socket.emit('profile:update', { tag, bio, paypalEmail }, (res) => {
-            if (res.success) {
-                alert('Profile updated successfully!');
-                window.location.reload();
-            } else {
-                alert(res.message || 'Update failed.');
-            }
-        });
-    };
-
-    window.processPayment = function(type) {
-        const amount = type === 'donate' ? document.getElementById('donate-amount').value : 3;
-        const note = type === 'donate' ? document.getElementById('donate-msg').value : `${type} edit commission`;
-        
-        socket.emit('payment:notify', { type, amount, note, username: currentUserData ? currentUserData.username : 'Guest' });
-        alert(`Redirecting to PayPal for $${amount}... After payment, you will be directed to @starediter1's chat!`);
-        window.open(`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=starediter1@gmail.com&item_name=Star+Fam+Payment&amount=${amount}&currency_code=USD`, '_blank');
-    };
+  socket.emit('login_user', { username, pin });
 });
 
-// Global Helper UI Functions
-function setAuthMode(mode) {
-    const loginForm = document.getElementById('login-form');
-    const signupForm = document.getElementById('signup-form');
-    const recoveryForm = document.getElementById('recovery-form');
-    const btnLogin = document.getElementById('btn-toggle-login');
-    const btnSignup = document.getElementById('btn-toggle-signup');
+// Signup Handler
+document.getElementById('signup-btn').addEventListener('click', () => {
+  const username = document.getElementById('signup-username').value.trim();
+  const pin = document.getElementById('signup-pin').value.trim();
+  const role = document.getElementById('signup-role').value;
 
-    loginForm.classList.add('hidden');
-    signupForm.classList.add('hidden');
-    recoveryForm.classList.add('hidden');
-    if (btnLogin) btnLogin.classList.remove('active');
-    if (btnSignup) btnSignup.classList.remove('active');
+  if (!username || !pin) {
+    alert('Please fill out all fields.');
+    return;
+  }
 
-    if (mode === 'login') {
-        loginForm.classList.remove('hidden');
-        if (btnLogin) btnLogin.classList.add('active');
-    } else if (mode === 'signup') {
-        signupForm.classList.remove('hidden');
-        if (btnSignup) btnSignup.classList.add('active');
-    }
+  socket.emit('register_user', { username, pin, role });
+});
+
+socket.on('auth_success', (user) => {
+  currentUser = user;
+  authOverlay.classList.add('hidden');
+  document.getElementById('profile-username').textContent = user.username;
+  document.getElementById('profile-handle').textContent = `@${user.username}`;
+  document.getElementById('profile-badge').textContent = user.role === 'Owner' ? 'Owner 👑' : user.role;
+  document.getElementById('profile-avatar').textContent = user.username.charAt(0).toUpperCase();
+  
+  socket.emit('join_room', currentRoom);
+});
+
+socket.on('auth_error', (err) => {
+  alert(err);
+});
+
+// Navigation Rooms / Tabs
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    const targetBtn = e.currentTarget;
+    targetBtn.classList.add('active');
+    
+    currentRoom = targetBtn.dataset.room;
+    document.getElementById('current-room-title').textContent = targetBtn.textContent.trim();
+    
+    document.getElementById('messages-container').innerHTML = '';
+    socket.emit('join_room', currentRoom);
+  });
+});
+
+// Send Message
+function sendMessage() {
+  const input = document.getElementById('message-input');
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  socket.emit('send_message', {
+    room: currentRoom,
+    sender: currentUser.username,
+    text: text,
+    type: 'text'
+  });
+
+  input.value = '';
 }
 
-function openRecoveryScreen() {
-    document.getElementById('login-form').classList.add('hidden');
-    document.getElementById('signup-form').classList.add('hidden');
-    document.getElementById('recovery-form').classList.remove('hidden');
-}
+document.getElementById('send-btn').addEventListener('click', sendMessage);
+document.getElementById('message-input').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') sendMessage();
+});
 
-function closeLeaderboardModal() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
-function openLeaderboardModal() { 
-    document.getElementById('leaderboard-modal').classList.remove('hidden');
-    const socket = io();
-    socket.emit('leaderboard:get', (list) => {
-        const ul = document.getElementById('leaderboard-list');
-        ul.innerHTML = '';
-        list.forEach((u, idx) => {
-            const li = document.createElement('li');
-            li.style.padding = '6px';
-            li.innerHTML = `#${idx + 1} **${u.username}** (${u.selectedApp}) - ${u.score} pts [${u.level}]`;
-            ul.appendChild(li);
-        });
+// Incoming Messages & Polls
+socket.on('load_messages', (messages) => {
+  const container = document.getElementById('messages-container');
+  container.innerHTML = '';
+  messages.forEach(msg => renderMessage(msg));
+});
+
+socket.on('new_message', (msg) => {
+  renderMessage(msg);
+});
+
+// --- RENDER POLLS & MESSAGES WITH CLICK-TO-VOTE & PROPER PERMISSIONS ---
+function renderMessage(msg) {
+  const container = document.getElementById('messages-container');
+  const row = document.createElement('div');
+  row.className = `message-row ${msg.sender === currentUser.username ? 'my-msg' : ''}`;
+
+  if (msg.type === 'poll') {
+    let optionsHtml = '';
+    const totalVotes = msg.votes ? Object.values(msg.votes).reduce((a, b) => a + b, 0) : 0;
+
+    msg.options.forEach((opt, index) => {
+      const voteCount = msg.votes && msg.votes[index] ? msg.votes[index] : 0;
+      const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+
+      optionsHtml += `
+        <div onclick="voteOnPoll('${msg.id}', ${index})" style="background: rgba(147, 51, 234, 0.15); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; margin-bottom: 4px; cursor: pointer; position: relative; overflow: hidden;">
+          <div style="position: absolute; top:0; left:0; bottom:0; width: ${percentage}%; background: rgba(147, 51, 234, 0.3); z-index: 1;"></div>
+          <div style="display: flex; justify-content: space-between; position: relative; z-index: 2; font-size: 0.8rem;">
+            <span>${opt}</span>
+            <span style="color: var(--accent-light);">${percentage}% (${voteCount})</span>
+          </div>
+        </div>
+      `;
     });
+
+    const canDeletePoll = currentUser.username === msg.sender || currentUser.role === 'Owner';
+    const deleteBtn = canDeletePoll ? `<button onclick="deletePoll('${msg.id}')" style="background:none; border:none; color:#ff8888; font-size:0.7rem; cursor:pointer; float:right;">🗑️ Delete</button>` : '';
+
+    row.innerHTML = `
+      <div class="msg-bubble glass-box" style="width: 260px; max-width: 90%; padding: 10px;">
+        ${deleteBtn}
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">📊 Poll by @${msg.sender}</div>
+        <div style="font-weight:bold; font-size:0.85rem; margin-bottom:8px;">${msg.question}</div>
+        ${optionsHtml}
+        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px; text-align:right;">Total Votes: ${totalVotes}</div>
+      </div>
+    `;
+  } else {
+    row.innerHTML = `
+      <div class="msg-bubble glass-box">
+        <div style="font-size:0.7rem; color:var(--text-muted);">@${msg.sender}</div>
+        <div>${msg.text}</div>
+      </div>
+    `;
+  }
+
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
 }
 
-function closeTriviaModal() { document.getElementById('trivia-modal').classList.add('hidden'); }
-function openTriviaModal() { document.getElementById('trivia-modal').classList.remove('hidden'); }
-function closeAssetsModal() { document.getElementById('assets-modal').classList.add('hidden'); }
-function openAssetsModal() { 
-    document.getElementById('assets-modal').classList.remove('hidden');
-    const socket = io();
-    socket.emit('asset:fetch', (assets) => {
-        const box = document.getElementById('asset-list');
-        box.innerHTML = '';
-        assets.forEach(a => {
-            const div = document.createElement('div');
-            div.style.padding = '6px';
-            div.innerHTML = `🎵 <strong>${a.name}</strong> (${a.category}) - <a href="${a.url}" target="_blank" style="color:var(--accent-light);">Download / Play</a>`;
-            box.appendChild(div);
-        });
-    });
-}
-function closePollModal() { document.getElementById('poll-modal').classList.add('hidden'); }
-function openPollModal() { document.getElementById('poll-modal').classList.remove('hidden'); }
-function closeAnalytics() { document.getElementById('analytics-modal').classList.add('hidden'); }
-function openAnalytics() { 
-    document.getElementById('analytics-modal').classList.remove('hidden');
-    const socket = io();
-    socket.emit('analytics:get', (stats) => {
-        if (!stats.error) {
-            document.getElementById('stat-registered').innerText = stats.totalRegistered;
-            document.getElementById('stat-online').innerText = stats.activeOnline;
-            document.getElementById('stat-hours').innerText = stats.totalHoursUsed;
-            document.getElementById('stat-revenue').innerText = `$${stats.totalRevenue.toFixed(2)}`;
-        }
-    });
-}
-function closeProfileModal() { document.getElementById('profile-modal').classList.add('hidden'); }
-function openMyProfile() { document.getElementById('profile-modal').classList.remove('hidden'); }
-function toggleNotifBox() { document.getElementById('notif-box').classList.toggle('hidden'); }
-
-function logoutUser() {
-    localStorage.removeItem('starFamUser');
-    sessionStorage.removeItem('starFamUser');
-    window.location.reload();
+// Vote action
+function voteOnPoll(pollId, optionIndex) {
+  socket.emit('vote_poll', { pollId, optionIndex, username: currentUser.username, room: currentRoom });
 }
 
-function handleKeyPress(e) {
-    if (e.key === 'Enter') {
-        sendMessage();
-    }
+// Delete Poll action
+function deletePoll(pollId) {
+  if (confirm('Are you sure you want to delete this poll?')) {
+    socket.emit('delete_poll', { pollId, room: currentRoom });
+  }
 }
+
+// Create Poll Modal Handling
+function openPollModal() {
+  document.getElementById('poll-modal').classList.remove('hidden');
+}
+
+function closePollModal() {
+  document.getElementById('poll-modal').classList.add('hidden');
+}
+
+function submitPoll() {
+  const question = document.getElementById('poll-question').value.trim();
+  const opt1 = document.getElementById('poll-opt1').value.trim();
+  const opt2 = document.getElementById('poll-opt2').value.trim();
+
+  if (!question || !opt1 || !opt2) {
+    alert('Please enter a question and at least 2 options.');
+    return;
+  }
+
+  const options = [opt1, opt2];
+  const opt3 = document.getElementById('poll-opt3').value.trim();
+  if (opt3) options.push(opt3);
+
+  socket.emit('create_poll', {
+    room: currentRoom,
+    sender: currentUser.username,
+    question,
+    options
+  });
+
+  closePollModal();
+}
+
+// Online users sync
+socket.on('update_online_users', (users) => {
+  const list = document.getElementById('online-users-list');
+  list.innerHTML = '';
+  users.forEach(user => {
+    const li = document.createElement('li');
+    li.style.fontSize = '0.75rem';
+    li.style.padding = '3px 0';
+    li.style.color = 'var(--text-main)';
+    li.textContent = `🟢 @${user}`;
+    list.appendChild(li);
+  });
+});
