@@ -116,16 +116,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 const DEFAULT_PAYPAL_EMAIL = 'starediter1@gmail.com';
 const OWNER_USERNAME = 'starediter1';
 const OWNER_PIN = '2030';
-const RECOVERY_CODE = '1111';
 const activeSockets = {};
-
-setInterval(() => {
-  const activeCount = Object.keys(activeSockets).length;
-  if (activeCount > 0) {
-    db.analytics.totalSecondsUsed = (db.analytics.totalSecondsUsed || 0) + activeCount;
-    saveDB();
-  }
-}, 5000);
 
 io.on('connection', (socket) => {
   socket.on('auth:signup', ({ username, pin, tag, bio, pfp }, callback) => {
@@ -253,7 +244,6 @@ io.on('connection', (socket) => {
       id: 'msg-' + Date.now() + '-' + Math.round(Math.random()*1000),
       sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
       targetRoom: data.targetRoom, text: data.text || '',
-      attachment: data.attachment || null, replyTo: data.replyTo || null,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -263,27 +253,19 @@ io.on('connection', (socket) => {
     } else if (data.targetRoom === 'editing-comp') {
       db.chatHistory['editing-comp'].push(payload);
       io.emit('chat:message', payload);
-    } else if (data.targetRoom === 'creator') {
-      if (!db.chatHistory.creator[user.username]) db.chatHistory.creator[user.username] = [];
-      db.chatHistory.creator[user.username].push(payload);
-      io.emit('chat:creator_sync', payload);
     }
     saveDB();
   });
 
-  socket.on('chat:delete', ({ msgId, room, targetUser }) => {
+  socket.on('chat:delete', ({ msgId, room }) => {
     const user = activeSockets[socket.id];
     if (!user) return;
-    let list = [];
-    if (room === 'global') list = db.chatHistory.global;
-    else if (room === 'editing-comp') list = db.chatHistory['editing-comp'];
-    else if (room === 'creator') list = db.chatHistory.creator[targetUser || user.username] || [];
-    
+    let list = room === 'global' ? db.chatHistory.global : db.chatHistory['editing-comp'];
     const idx = list.findIndex(m => m.id === msgId);
     if (idx !== -1 && (list[idx].sender === user.username || user.isOwner || user.isMod)) {
       list.splice(idx, 1);
       saveDB();
-      io.emit('chat:refresh', { room, targetUser });
+      io.emit('chat:refresh', { room });
     }
   });
 
@@ -331,23 +313,13 @@ io.on('connection', (socket) => {
 
   socket.on('poll:fetch', (room, callback) => {
     if (!Array.isArray(db.polls)) db.polls = [];
-    const active = db.polls.filter(p => p.room === room);
+    const active = db.polls.polls ? [] : db.polls.filter(p => p.room === room);
     if (typeof callback === 'function') callback(active);
   });
 
   socket.on('asset:fetch', (callback) => { 
     if (!Array.isArray(db.assets)) db.assets = [...defaultDB.assets];
     if (typeof callback === 'function') callback(db.assets); 
-  });
-
-  socket.on('asset:add', ({ name, category, url }) => {
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    if (!Array.isArray(db.assets)) db.assets = [...defaultDB.assets];
-    const newAsset = { id: Date.now(), name, category, url, uploader: user.username };
-    db.assets.push(newAsset);
-    saveDB();
-    io.emit('asset:updated', db.assets);
   });
 
   socket.on('asset:delete', ({ assetId }) => {
@@ -365,12 +337,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('chat:fetch_history', ({ room, targetUser }, callback) => {
+  socket.on('chat:fetch_history', ({ room }, callback) => {
     const user = activeSockets[socket.id];
     if (!user || typeof callback !== 'function') return;
     if (room === 'global') callback(db.chatHistory.global || []);
     else if (room === 'editing-comp') callback(db.chatHistory['editing-comp'] || []);
-    else if (room === 'creator') callback((db.chatHistory.creator && db.chatHistory.creator[targetUser || user.username]) || []);
   });
 
   socket.on('disconnect', () => {
