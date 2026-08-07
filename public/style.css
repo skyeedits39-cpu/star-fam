@@ -532,7 +532,7 @@ body {
 }
 
 /* ==========================================
-   MOBILE SWIPEABLE SIDE-BY-SIDE LAYOUT
+   MOBILE EXPANDED SWIPEABLE LAYOUT
    ================================---------- */
 
 @media (max-width: 768px) {
@@ -543,8 +543,8 @@ body {
   .app-container {
     display: flex;
     flex-direction: row !important;
-    width: 140vw !important;
-    min-width: 500px;
+    width: 180vw !important;
+    min-width: 650px;
     height: 100vh;
     height: 100dvh;
     padding: 6px;
@@ -577,7 +577,7 @@ body {
 
   .chat-area {
     flex: 1 !important;
-    min-width: 320px;
+    min-width: 420px;
     height: 100% !important;
     display: flex;
     flex-direction: column;
