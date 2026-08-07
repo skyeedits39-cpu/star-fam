@@ -18,7 +18,21 @@ const dataFilePath = path.join(__dirname, 'db.json');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const defaultDB = {
-  registeredUsers: {},
+  registeredUsers: {
+    "starediter1": {
+      username: "starediter1",
+      pin: "2030",
+      tag: "@starediter1",
+      bio: "VFX Motion Editor & Owner",
+      pfp: null,
+      paypalEmail: "starediter1@gmail.com",
+      role: "Owner 👑",
+      score: 100,
+      level: "Pro 🔥",
+      selectedApp: "After Effects",
+      createdAt: new Date()
+    }
+  },
   chatHistory: { global: [], creator: {}, 'editing-comp': [] },
   privateDMs: {},
   polls: [],
@@ -33,12 +47,12 @@ const defaultDB = {
 
 let db = { ...defaultDB };
 
-if (fs.existsSync(dataFilePath)) {
-  try {
+try {
+  if (fs.existsSync(dataFilePath)) {
     const raw = fs.readFileSync(dataFilePath);
     const parsed = JSON.parse(raw);
     db = {
-      registeredUsers: parsed.registeredUsers || {},
+      registeredUsers: parsed.registeredUsers || defaultDB.registeredUsers,
       chatHistory: parsed.chatHistory || { global: [], creator: {}, 'editing-comp': [] },
       privateDMs: parsed.privateDMs || {},
       polls: parsed.polls || [],
@@ -46,15 +60,24 @@ if (fs.existsSync(dataFilePath)) {
       analytics: parsed.analytics || { totalSecondsUsed: 0, totalRevenue: 0 },
       notifications: parsed.notifications || []
     };
-  } catch (err) {
-    db = { ...defaultDB };
+    // Ensure owner always exists
+    if (!db.registeredUsers["starediter1"]) {
+      db.registeredUsers["starediter1"] = defaultDB.registeredUsers["starediter1"];
+    }
+  } else {
+    fs.writeFileSync(dataFilePath, JSON.stringify(defaultDB, null, 2));
   }
-} else {
-  fs.writeFileSync(dataFilePath, JSON.stringify(db, null, 2));
+} catch (err) {
+  db = { ...defaultDB };
+  fs.writeFileSync(dataFilePath, JSON.stringify(defaultDB, null, 2));
 }
 
 function saveDB() {
-  fs.writeFileSync(dataFilePath, JSON.stringify(db, null, 2));
+  try {
+    fs.writeFileSync(dataFilePath, JSON.stringify(db, null, 2));
+  } catch (e) {
+    console.error("Failed to save DB:", e);
+  }
 }
 
 const storage = multer.diskStorage({
@@ -159,19 +182,7 @@ io.on('connection', (socket) => {
     
     if (cleanId === OWNER_USERNAME && pin === OWNER_PIN) {
       if (!db.registeredUsers[OWNER_USERNAME]) {
-        db.registeredUsers[OWNER_USERNAME] = {
-          username: 'starediter1',
-          pin: OWNER_PIN,
-          tag: '@starediter1',
-          bio: 'VFX Motion Editor & Owner',
-          pfp: null,
-          paypalEmail: DEFAULT_PAYPAL_EMAIL,
-          role: 'Owner 👑',
-          score: 100,
-          level: 'Pro 🔥',
-          selectedApp: 'After Effects',
-          createdAt: new Date()
-        };
+        db.registeredUsers[OWNER_USERNAME] = defaultDB.registeredUsers["starediter1"];
         saveDB();
       }
     }
@@ -454,4 +465,3 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`✨ Star Fam active on http://localhost:${PORT}`));
-```[cite: 1]
