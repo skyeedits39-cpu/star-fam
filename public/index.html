@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Star Fam 💜 - Premier Motion Editor Hub</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <!-- AUTHENTICATION MODAL -->
+  <div id="auth-overlay" class="overlay">
+    <div class="auth-card glass-panel">
+      <h1 class="logo">Star Fam ✨💜</h1>
+      <p class="subtitle">Secure Motion Editor Lounge</p>
+
+      <div class="auth-toggle-bar">
+        <button id="btn-toggle-login" class="toggle-btn active" onclick="setAuthMode('login')">Login</button>
+        <button id="btn-toggle-signup" class="toggle-btn" onclick="setAuthMode('signup')">Sign Up</button>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="login-form">
+        <div class="input-group">
+          <label>Unique Tag or Username</label>
+          <input type="text" id="login-id" placeholder="e.g. @starediter1" required>
+        </div>
+        <div class="input-group">
+          <label>4-Digit Security PIN</label>
+          <input type="password" id="login-pin" placeholder="••••" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+        </div>
+        <button type="submit" class="btn-primary">Enter App ✨</button>
+        <button type="button" class="btn-link" onclick="openRecoveryScreen()">Forgot PIN or Username?</button>
+      </form>
+
+      <!-- SIGN UP -->
+      <form id="signup-form" class="hidden">
+        <div class="input-group">
+          <label>Username</label>
+          <input type="text" id="signup-username" placeholder="e.g. skyeedits or starediter1" required>
+        </div>
+        <div class="input-group">
+          <label>4-Digit Security PIN</label>
+          <input type="password" id="signup-pin" placeholder="••••" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+        </div>
+        <div class="input-group">
+          <label>Unique Tag</label>
+          <input type="text" id="signup-tag" placeholder="e.g. @skye_edits" required>
+        </div>
+        <div class="input-group">
+          <label>Profile Picture</label>
+          <input type="file" id="pfp-file-input" accept="image/*" class="custom-file-input">
+          <input type="text" id="signup-pfp" placeholder="or paste image URL">
+        </div>
+        <div class="input-group">
+          <label>Bio / Editing Software</label>
+          <input type="text" id="signup-bio" placeholder="e.g. AE 2023 | Velocity & Motion Blur">
+        </div>
+        <button type="submit" class="btn-primary">Create Account ✨</button>
+      </form>
+
+      <!-- RECOVERY -->
+      <form id="recovery-form" class="hidden">
+        <h3 style="color:var(--accent-light); margin-bottom:10px;">🔑 Reset PIN or Username</h3>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:10px;">Type passcode <strong>1111</strong> to authorize reset.</p>
+        <div class="input-group">
+          <label>Passcode</label>
+          <input type="password" id="rec-code" placeholder="Type 1111" required>
+        </div>
+        <div class="input-group">
+          <label>Account Tag</label>
+          <input type="text" id="rec-tag" placeholder="e.g. @skye_edits" required>
+        </div>
+        <div class="input-group">
+          <label>New PIN (Optional)</label>
+          <input type="password" id="rec-new-pin" placeholder="••••" maxlength="4">
+        </div>
+        <div class="input-group">
+          <label>New Username (Optional)</label>
+          <input type="text" id="rec-new-username" placeholder="New handle">
+        </div>
+        <button type="submit" class="btn-primary">Reset Account ✨</button>
+        <button type="button" class="btn-secondary" onclick="setAuthMode('login')" style="margin-top:6px;">Back to Login</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- OWNER NOTIFICATIONS -->
+  <div id="notif-box" class="notif-box glass-panel hidden">
+    <h3>🔔 Owner Alerts</h3>
+    <ul id="notif-list"></ul>
+    <button class="btn-secondary" onclick="toggleNotifBox()">Close</button>
+  </div>
+
+  <!-- PROFILE MODAL -->
+  <div id="profile-modal" class="overlay hidden">
+    <div class="auth-card glass-panel profile-card">
+      <div class="profile-header">
+        <div class="avatar-large" id="modal-pfp">★</div>
+        <h2 id="modal-username">Username</h2>
+        <small id="modal-tag">@tag</small>
+        <span id="modal-role" class="badge">Editor</span>
+        <p id="modal-bio" class="bio-text">Bio description</p>
+      </div>
+
+      <div id="edit-profile-section" class="edit-profile-section hidden">
+        <hr class="divider">
+        <h3 style="color:var(--accent-light);">✏️ Edit My Profile</h3>
+        <div class="input-group">
+          <label>New Profile Picture</label>
+          <input type="file" id="edit-pfp-file" accept="image/*" class="custom-file-input">
+        </div>
+        <div class="input-group">
+          <label>Tag</label>
+          <input type="text" id="edit-tag" placeholder="@newtag">
+        </div>
+        <div class="input-group">
+          <label>Bio</label>
+          <input type="text" id="edit-bio" placeholder="Update bio...">
+        </div>
+        <div id="paypal-link-input-group" class="input-group">
+          <label style="color:var(--pinned-gold);">💳 Your PayPal Email (to receive payments)</label>
+          <input type="email" id="edit-paypal" placeholder="your-paypal@email.com">
+        </div>
+        <button class="btn-primary" onclick="saveProfileChanges()">Save Changes ✨</button>
+      </div>
+
+      <div id="creator-options" class="creator-options hidden">
+        <hr class="divider">
+        <h3>✨ Support & Commissions</h3>
+        <div class="option-box glass-box">
+          <h4>💖 Donate (I appreciate everything)</h4>
+          <input type="text" id="donate-msg" placeholder="Custom message for creator..." style="width:100%; margin-bottom:6px; padding:6px;">
+          <div class="donate-input-wrapper">
+            <span>$</span>
+            <input type="number" id="donate-amount" min="1" placeholder="Amount" value="5">
+            <button class="btn-paypal" onclick="processPayment('donate')">Donate with PayPal</button>
+          </div>
+        </div>
+        <div class="option-box glass-box">
+          <h4>🎬 Pay for Personal Edit ($3 USD)</h4>
+          <div class="edit-options">
+            <button class="btn-service" onclick="processPayment('velocity')">⚡ Velocity Edit ($3)</button>
+            <button class="btn-service" onclick="processPayment('tiktok')">🎵 TikTok Edit ($3)</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-secondary" onclick="closeProfileModal()" style="margin-top: 15px;">Close</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD MODAL -->
+  <div id="leaderboard-modal" class="overlay hidden">
+    <div class="auth-card glass-panel" style="max-width:500px;">
+      <h2>🏆 Global Editor Ranks & Leaderboard</h2>
+      <p class="subtitle">Novice (0) | Beginner 🌟 (20) | Intermediate ⭐ (50) | Pro 🔥 (100)</p>
+      <div class="leaderboard-box glass-box">
+        <ul id="leaderboard-list"></ul>
+      </div>
+      <button class="btn-secondary" onclick="closeLeaderboardModal()" style="margin-top:10px;">Close Leaderboard</button>
+    </div>
+  </div>
+
+  <!-- TRIVIA ARCADE MODAL -->
+  <div id="trivia-modal" class="overlay hidden">
+    <div class="auth-card glass-panel" style="max-width:500px;">
+      <h2>🎮 Editor Trivia Arcade</h2>
+
+      <div id="trivia-app-select" class="input-group">
+        <label>Select Your Primary Editing App:</label>
+        <select id="selected-app-dropdown">
+          <option value="After Effects">After Effects (AE)</option>
+          <option value="CapCut">CapCut</option>
+          <option value="Alight Motion">Alight Motion</option>
+          <option value="Video Star">Video Star</option>
+          <option value="BlurRR">BlurRR</option>
+        </select>
+        <button class="btn-primary" onclick="startTriviaGame()" style="margin-top:10px;">Start Quiz ✨</button>
+      </div>
+
+      <div id="trivia-game-box" class="hidden">
+        <div class="quiz-status-bar">
+          <span id="quiz-level-tag">Level: Beginner</span>
+          <span id="quiz-score-tag">Points: 0</span>
+        </div>
+        <div class="trivia-box glass-box">
+          <h3 id="trivia-question">Question loading...</h3>
+          <div id="trivia-options" class="trivia-options"></div>
+        </div>
+        <button class="btn-primary" onclick="submitTriviaAnswerAndNext()" style="margin-top:10px;">Next Question ➡️</button>
+      </div>
+
+      <button class="btn-secondary" onclick="closeTriviaModal()" style="margin-top:10px;">Close Arcade</button>
+    </div>
+  </div>
+
+  <!-- ASSET VAULT MODAL -->
+  <div id="assets-modal" class="overlay hidden">
+    <div class="auth-card glass-panel" style="max-width:550px;">
+      <h2>🎵 Sound FX & Overlay Asset Vault</h2>
+      <p class="subtitle">Stream, Download & Share Essential Editing Elements</p>
+
+      <div class="asset-list-box glass-box" id="asset-list"></div>
+
+      <hr class="divider">
+      <h4 style="color:var(--accent-light); margin-bottom:6px;">Upload New Asset</h4>
+      <div class="input-group">
+        <input type="text" id="new-asset-name" placeholder="Asset Title (e.g. Glitch Transition Sound)">
+      </div>
+      <div class="input-group">
+        <select id="new-asset-cat">
+          <option value="Audio FX">Audio FX</option>
+          <option value="Overlays">Overlays & Textures</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <input type="file" id="new-asset-file" class="custom-file-input">
+      </div>
+      <button class="btn-primary" onclick="uploadAssetToVault()">Upload Asset 🚀</button>
+
+      <button class="btn-secondary" onclick="closeAssetsModal()" style="margin-top:10px;">Close Vault</button>
+    </div>
+  </div>
+
+  <!-- POLL MODAL -->
+  <div id="poll-modal" class="overlay hidden">
+    <div class="auth-card glass-panel">
+      <h3>📊 Create a Community Poll</h3>
+      <div class="input-group">
+        <label>Question</label>
+        <input type="text" id="poll-q-input" placeholder="Which transition plugin is better?">
+      </div>
+      <div class="input-group">
+        <label>Option 1</label>
+        <input type="text" class="poll-opt-input" placeholder="Option A">
+      </div>
+      <div class="input-group">
+        <label>Option 2</label>
+        <input type="text" class="poll-opt-input" placeholder="Option B">
+      </div>
+      <button class="btn-primary" onclick="submitNewPoll()">Publish Poll 📊</button>
+      <button class="btn-secondary" onclick="closePollModal()" style="margin-top:6px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ANALYTICS MODAL (OWNER ONLY) -->
+  <div id="analytics-modal" class="overlay hidden">
+    <div class="auth-card glass-panel analytics-card">
+      <h2>📈 Owner Analytics Panel</h2>
+      <div class="stats-grid">
+        <div class="stat-box glass-box">
+          <span class="stat-number" id="stat-registered">0</span>
+          <span class="stat-label">Total Accounts</span>
+        </div>
+        <div class="stat-box glass-box">
+          <span class="stat-number" id="stat-online">0</span>
+          <span class="stat-label">Active Users</span>
+        </div>
+        <div class="stat-box glass-box">
+          <span class="stat-number" id="stat-hours">0.00</span>
+          <span class="stat-label">Hours Used</span>
+        </div>
+        <div class="stat-box glass-box">
+          <span class="stat-number" id="stat-revenue">$0.00</span>
+          <span class="stat-label">Total Revenue</span>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="closeAnalytics()" style="margin-top:20px;">Close Panel</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="app" class="app-container hidden">
+    <aside class="sidebar glass-panel">
+      <div class="brand">
+        <h2>Star Fam 💜</h2>
+        <div style="display:flex; gap:4px;">
+          <button id="btn-analytics" class="btn-analytics hidden" onclick="openAnalytics()">📈</button>
+          <button id="btn-notif-bell" class="btn-analytics hidden" onclick="toggleNotifBox()">🔔</button>
+        </div>
+      </div>
+
+      <div class="profile-preview glass-box" onclick="openMyProfile()" style="cursor: pointer;">
+        <div class="avatar" id="my-avatar">★</div>
+        <div class="profile-info">
+          <span id="my-name">Username</span>
+          <small id="my-tag">@tag</small>
+          <span id="my-role" class="badge">Editor ✏️</span>
+        </div>
+      </div>
+
+      <div class="section-title">📌 PINNED CHATS</div>
+      <nav class="chat-selector">
+        <button id="btn-creator" class="nav-btn pinned active" onclick="switchRoom('creator')">
+          <span>👑 Creator Direct Chat</span>
+        </button>
+      </nav>
+
+      <div class="section-title">💬 CHANNELS & GROUPS</div>
+      <nav class="chat-selector">
+        <button id="btn-global" class="nav-btn" onclick="switchRoom('global')">
+          <span>🌐 Community Lounge</span>
+        </button>
+        <button id="btn-comp" class="nav-btn" onclick="switchRoom('editing-comp')">
+          <span>🏆 Editing Comp</span>
+        </button>
+        <button class="nav-btn" onclick="openLeaderboardModal()">
+          <span>🏆 Global Leaderboard</span>
+        </button>
+        <button class="nav-btn arcade-btn" onclick="openTriviaModal()">
+          <span>🎮 Editor Trivia Quiz</span>
+        </button>
+        <button class="nav-btn" onclick="openAssetsModal()">
+          <span>🎵 Asset Vault (SFX/Overlays)</span>
+        </button>
+      </nav>
+
+      <div class="section-title">👥 DIRECT MESSAGES</div>
+      <div class="online-users">
+        <ul id="user-list"></ul>
+      </div>
+    </aside>
+
+    <main class="chat-area glass-panel">
+      <header class="chat-header">
+        <div class="header-main">
+          <h2 id="room-title">👑 Creator Direct Chat</h2>
+          <button id="btn-create-poll" class="btn-secondary hidden" style="width:auto; padding:4px 8px;" onclick="openPollModal()">+ Create Poll 📊</button>
+        </div>
+        <span class="room-desc" id="room-desc">Direct private communication line with @starediter1</span>
+      </header>
+
+      <div id="active-poll-display" class="active-poll-display"></div>
+
+      <div class="messages-container" id="messages-container"></div>
+
+      <!-- REPLY BAR -->
+      <div id="reply-bar" class="reply-bar hidden">
+        <span id="reply-text">Replying...</span>
+        <button onclick="cancelReply()" style="background:none; border:none; color:#fff; cursor:pointer;">❌</button>
+      </div>
+
+      <footer class="chat-input-area">
+        <div class="input-row">
+          <input type="file" id="media-input" accept="image/*,video/*,audio/*" style="display:none" onchange="uploadFile('media')">
+          <input type="file" id="doc-input" style="display:none" onchange="uploadFile('doc')">
+          
+          <button class="icon-btn" onclick="document.getElementById('media-input').click()" title="Upload Photo/Video">📷</button>
+          <button class="icon-btn" onclick="document.getElementById('doc-input').click()" title="Upload File/Document">📎</button>
+
+          <input type="text" id="message-input" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+          <button class="btn-send" onclick="sendMessage()">Send ✨</button>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

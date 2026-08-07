@@ -1,0 +1,105 @@
+{
+  "registeredUsers": {
+    "starediter1": {
+      "username": "starediter1",
+      "pin": "2030",
+      "tag": "@starediter1",
+      "bio": "Hey everyone, I'm @starediter1. I created Star Fam as a home for editors to drop presets, trade tutorials.  📥 Check my profile options to commission an edit or throw a quick donation my way if you enjoy the app!",
+      "pfp": "/uploads/1786076651653-337117937.jpeg",
+      "role": "Owner 👑",
+      "score": 20,
+      "level": "Beginner 🌟",
+      "selectedApp": "After Effects",
+      "createdAt": "2026-08-07T04:27:16.825Z",
+      "paypalEmail": "starediter25@gmail.com"
+    }
+  },
+  "chatHistory": {
+    "global": [],
+    "creator": {
+      "starediter1": []
+    },
+    "editing-comp": []
+  },
+  "privateDMs": {},
+  "polls": [],
+  "assets": [],
+  "analytics": {
+    "totalSecondsUsed": 1519,
+    "totalRevenue": 35
+  },
+  "notifications": [
+    {
+      "id": 1786101934133,
+      "type": "velocity",
+      "amount": "3",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "7:25:34 am"
+    },
+    {
+      "id": 1786098387063,
+      "type": "donate",
+      "amount": "5",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "6:26:27 am"
+    },
+    {
+      "id": 1786079957461,
+      "type": "tiktok",
+      "amount": "3",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "1:19:17 am"
+    },
+    {
+      "id": 1786079936745,
+      "type": "donate",
+      "amount": "5",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "1:18:56 am"
+    },
+    {
+      "id": 1786079582878,
+      "type": "velocity",
+      "amount": "3",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "1:13:02 am"
+    },
+    {
+      "id": 1786078559808,
+      "type": "donate",
+      "amount": "1",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "12:55:59 am"
+    },
+    {
+      "id": 1786078541075,
+      "type": "donate",
+      "amount": "5",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "12:55:41 am"
+    },
+    {
+      "id": 1786077526810,
+      "type": "donate",
+      "amount": "5",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "12:38:46 am"
+    },
+    {
+      "id": 1786076972175,
+      "type": "donate",
+      "amount": "5",
+      "note": "",
+      "username": "starediter1",
+      "timestamp": "12:29:32 am"
+    }
+  ]
+}
