@@ -1,18 +1,14 @@
 {
   "name": "star-fam",
-  "version": "2.0.0",
-  "description": "Star Fam 💜 - Premier Editor Community",
+  "version": "1.0.0",
+  "description": "Premier Motion Editor Hub",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/cli": "^8.5.0",
-    "@capacitor/core": "^8.5.0",
-    "@capacitor/ios": "^8.5.0",
-    "express": "^4.22.2",
+    "express": "^4.18.2",
     "multer": "^1.4.5-lts.1",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.7.2"
   }
 }
