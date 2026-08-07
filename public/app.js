@@ -29,15 +29,16 @@ function switchAuthTab(tab) {
   }
 }
 
-// Robust Login Handler (Handles browser autofill safely)
+// Ultra-Robust Login Handler (Handles browser autofill & value tracking)
 document.getElementById('login-btn').addEventListener('click', (e) => {
   e.preventDefault();
   
   const identifierInput = document.getElementById('login-username');
   const pinInput = document.getElementById('login-pin');
   
-  const identifier = identifierInput.value.trim() || identifierInput.getAttribute('value') || '';
-  const pin = pinInput.value.trim() || pinInput.getAttribute('value') || '';
+  // Directly pull value, handling autofill states safely
+  const identifier = (identifierInput.value || identifierInput.defaultValue || "").trim();
+  const pin = (pinInput.value || pinInput.defaultValue || "").trim();
 
   if (!identifier || !pin) {
     alert('Please enter both username/tag and PIN.');
@@ -51,15 +52,15 @@ document.getElementById('login-btn').addEventListener('click', (e) => {
   });
 });
 
-// Robust Signup Handler
+// Ultra-Robust Signup Handler
 document.getElementById('signup-btn').addEventListener('click', (e) => {
   e.preventDefault();
   
   const usernameInput = document.getElementById('signup-username');
   const pinInput = document.getElementById('signup-pin');
   
-  const username = usernameInput.value.trim();
-  const pin = pinInput.value.trim();
+  const username = (usernameInput.value || usernameInput.defaultValue || "").trim();
+  const pin = (pinInput.value || pinInput.defaultValue || "").trim();
 
   if (!username || !pin) {
     alert('Please fill out all fields.');
