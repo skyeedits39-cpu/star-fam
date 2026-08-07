@@ -37,9 +37,9 @@ const defaultDB = {
   privateDMs: {},
   polls: [],
   assets: [
-    { id: 1, name: "Cinematic Whoosh", category: "Audio FX", url: "https://www.soundjay.com/free-music/sounds/barn-beat-01.mp3", uploader: "starediter1" },
-    { id: 2, name: "Sub Bass Drop", category: "Audio FX", url: "https://www.soundjay.com/button/sounds/button-1.mp3", uploader: "starediter1" },
-    { id: 3, name: "Film Grain Texture", category: "Overlays", url: "https://www.w3schools.com/html/mov_bbb.mp4", uploader: "starediter1" }
+    { id: 1, name: "Cinematic Whoosh", category: "Audio FX", url: "[https://www.soundjay.com/free-music/sounds/barn-beat-01.mp3](https://www.soundjay.com/free-music/sounds/barn-beat-01.mp3)", uploader: "starediter1" },
+    { id: 2, name: "Sub Bass Drop", category: "Audio FX", url: "[https://www.soundjay.com/button/sounds/button-1.mp3](https://www.soundjay.com/button/sounds/button-1.mp3)", uploader: "starediter1" },
+    { id: 3, name: "Film Grain Texture", category: "Overlays", url: "[https://www.w3schools.com/html/mov_bbb.mp4](https://www.w3schools.com/html/mov_bbb.mp4)", uploader: "starediter1" }
   ],
   analytics: { totalSecondsUsed: 0, totalRevenue: 0 },
   notifications: []
@@ -68,7 +68,6 @@ try {
   fs.writeFileSync(dataFilePath, JSON.stringify(defaultDB, null, 2));
 }
 
-// FORCE OVERRIDE OWNER PROFILE ON EVERY STARTUP
 db.registeredUsers["starediter1"] = {
   username: "starediter1",
   pin: "2030",
@@ -191,7 +190,6 @@ io.on('connection', (socket) => {
   socket.on('auth:login', ({ identifier, pin }, callback) => {
     const cleanId = identifier.trim().toLowerCase();
     
-    // STRICT OWNER OVERRIDE CHECK
     if (cleanId === OWNER_USERNAME && pin === OWNER_PIN) {
       db.registeredUsers[OWNER_USERNAME] = {
         username: 'starediter1',
@@ -487,4 +485,3 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`✨ Star Fam active on http://localhost:${PORT}`));
-```[cite: 1]
