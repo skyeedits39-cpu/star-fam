@@ -266,6 +266,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('trivia:reset', (callback) => {
+    const user = activeSockets[socket.id];
+    if (!user) return;
+    const cleanKey = user.username.toLowerCase();
+    if (db.registeredUsers[cleanKey]) {
+      db.registeredUsers[cleanKey].score = 0;
+      db.registeredUsers[cleanKey].level = 'Novice';
+      saveDB();
+      if (typeof callback === 'function') callback({ success: true, totalScore: 0, level: 'Novice' });
+    }
+  });
+
   socket.on('leaderboard:fetch', (callback) => {
     const usersList = Object.values(db.registeredUsers).map(u => ({
       username: u.username,
@@ -388,7 +400,7 @@ io.on('connection', (socket) => {
     const user = activeSockets[socket.id];
     if (!user) return;
     if (!Array.isArray(db.assets)) db.assets = [...defaultDB.assets];
-    const idx = db.assets.findIndex(a => a.id === assetId);
+    const idx = db.assets.findIndex(a => a.id === assetId || a.id.toString() === assetId.toString());
     if (idx !== -1) {
       const asset = db.assets[idx];
       if (user.isOwner || asset.uploader === user.username) {

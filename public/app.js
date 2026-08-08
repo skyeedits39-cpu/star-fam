@@ -567,6 +567,18 @@ function submitTriviaAnswerAndNext() {
   loadNextTriviaQuestion();
 }
 
+function resetTriviaScore() {
+  socket.emit('trivia:reset', (res) => {
+    if (res && res.success) {
+      sessionTriviaScore = 0;
+      currentUser.score = 0;
+      currentUser.level = 'Novice';
+      document.getElementById('quiz-score-tag').textContent = `Points: 0`;
+      alert('Your score has been reset to 0!');
+    }
+  });
+}
+
 // ASSET VAULT
 function openAssetsModal() {
   document.getElementById('assets-modal').classList.remove('hidden');
