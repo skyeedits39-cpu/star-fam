@@ -261,7 +261,7 @@ io.on('connection', (socket) => {
     const payload = {
       id: 'msg-' + Date.now() + '-' + Math.round(Math.random()*1000),
       sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
-      targetRoom: data.targetRoom, text: data.text || '',
+      targetRoom: data.targetRoom, text: data.text || '', replyTo: data.replyTo || null,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -271,10 +271,19 @@ io.on('connection', (socket) => {
     } else if (data.targetRoom === 'editing-comp') {
       db.chatHistory['editing-comp'].push(payload);
       io.emit('chat:message', payload);
-    } else if (data.targetRoom === 'creator') {
-      if (!db.chatHistory.creator[user.username]) db.chatHistory.creator[user.username] = [];
-      db.chatHistory.creator[user.username].push(payload);
-      io.emit('chat:message', payload);
+    } else if (data.targetRoom === 'creator' || data.targetRoom.startsWith('dm-')) {
+      const recipient = data.targetRoom === 'creator' ? OWNER_USERNAME : data.targetRoom.replace('dm-', '');
+      const threadKey = [user.username.toLowerCase(), recipient.toLowerCase()].sort().join('_');
+      if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
+      db.privateDMs[threadKey].push(payload);
+      
+      // Broadcast to matching sockets
+      io.sockets.sockets.forEach(s => {
+        const client = activeSockets[s.id];
+        if (client && (client.username.toLowerCase() === user.username.toLowerCase() || client.username.toLowerCase() === recipient.toLowerCase())) {
+          s.emit('chat:message', { ...payload, room: data.targetRoom });
+        }
+      });
     }
     saveDB();
   });
@@ -348,13 +357,7 @@ io.on('connection', (socket) => {
     const user = activeSockets[socket.id];
     if (!user) return;
     if (!Array.isArray(db.assets)) db.assets = [];
-    const newAsset = {
-      id: Date.now(),
-      name,
-      category,
-      url,
-      uploader: user.username
-    };
+    const newAsset = { id: Date.now(), name, category, url, uploader: user.username };
     db.assets.push(newAsset);
     saveDB();
     io.emit('asset:updated');
@@ -363,7 +366,7 @@ io.on('connection', (socket) => {
   socket.on('asset:delete', ({ assetId }) => {
     const user = activeSockets[socket.id];
     if (!user) return;
-    if (!Array.isArray(db.assets)) db.assets = [];
+    if (!Array.isArray(db.assets)) db.assets = [...defaultDB.assets];
     const idx = db.assets.findIndex(a => a.id === assetId);
     if (idx !== -1) {
       const asset = db.assets[idx];
@@ -380,7 +383,41 @@ io.on('connection', (socket) => {
     if (!user || typeof callback !== 'function') return;
     if (room === 'global') callback(db.chatHistory.global || []);
     else if (room === 'editing-comp') callback(db.chatHistory['editing-comp'] || []);
-    else if (room === 'creator') callback(db.chatHistory.creator[user.username] || []);
+    else if (room === 'creator') {
+      if (user.isOwner) {
+        // Owner sees all threads from users who messaged them
+        const allMsgs = [];
+        Object.keys(db.privateDMs).forEach(key => {
+          if (key.includes(OWNER_USERNAME)) {
+            allMsgs.push(...db.privateDMs[key]);
+          }
+        });
+        callback(allMsgs);
+      } else {
+        const threadKey = [user.username.toLowerCase(), OWNER_USERNAME].sort().join('_');
+        callback(db.privateDMs[threadKey] || []);
+      }
+    } else if (room.startsWith('dm-')) {
+      const recipient = room.replace('dm-', '');
+      const threadKey = [user.username.toLowerCase(), recipient.toLowerCase()].sort().join('_');
+      callback(db.privateDMs[threadKey] || []);
+    }
+  });
+
+  socket.on('dms:fetch_list', (callback) => {
+    const user = activeSockets[socket.id];
+    if (!user || typeof callback !== 'function') return;
+    const dms = [];
+    Object.keys(db.privateDMs).forEach(key => {
+      if (key.includes(user.username.toLowerCase())) {
+        const parts = key.split('_');
+        const other = parts[0] === user.username.toLowerCase() ? parts[1] : parts[0];
+        if (other !== OWNER_USERNAME || user.isOwner) {
+          dms.push({ username: other });
+        }
+      }
+    });
+    callback(dms);
   });
 
   socket.on('leaderboard:fetch', (callback) => {

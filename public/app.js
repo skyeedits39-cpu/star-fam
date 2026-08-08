@@ -2,6 +2,7 @@ const socket = io();
 
 let currentUser = null;
 let currentRoom = 'creator';
+let replyToMessage = null;
 
 const authOverlay = document.getElementById('auth-overlay');
 const mainAppContainer = document.getElementById('app');
@@ -94,6 +95,7 @@ socket.on('auth:success', (user) => {
   }
 
   loadRoomContent();
+  loadDMsList();
 });
 
 function switchRoom(room) {
@@ -103,7 +105,7 @@ function switchRoom(room) {
   if (room === 'creator') {
     document.getElementById('btn-creator').classList.add('active');
     document.getElementById('room-title').textContent = '👑 Creator Direct Chat';
-    document.getElementById('room-desc').textContent = 'Direct private communication line with @starediter1';
+    document.getElementById('room-desc').textContent = currentUser && (currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner')) ? 'Incoming direct messages from editors & creators' : 'Direct private communication line with @starediter1';
     document.getElementById('btn-create-poll').classList.add('hidden');
   } else if (room === 'global') {
     document.getElementById('btn-global').classList.add('active');
@@ -115,6 +117,11 @@ function switchRoom(room) {
     document.getElementById('room-title').textContent = '🏆 Editing Comp';
     document.getElementById('room-desc').textContent = 'Official Editing Competition channel!';
     document.getElementById('btn-create-poll').classList.remove('hidden');
+  } else if (room.startsWith('dm-')) {
+    const targetUser = room.replace('dm-', '');
+    document.getElementById('room-title').textContent = `💬 Direct Chat with @${targetUser}`;
+    document.getElementById('room-desc').textContent = `Private messaging with @${targetUser}`;
+    document.getElementById('btn-create-poll').classList.add('hidden');
   }
 
   loadRoomContent();
@@ -132,13 +139,43 @@ function loadRoomContent() {
   });
 }
 
+function loadDMsList() {
+  socket.emit('dms:fetch_list', (dms) => {
+    const userList = document.getElementById('user-list');
+    if (!userList) return;
+    userList.innerHTML = '';
+    
+    if (!dms || dms.length === 0) {
+      userList.innerHTML = '<li style="font-size:0.75rem; color:var(--text-muted); padding:3px 0;">No active DMs</li>';
+      return;
+    }
+
+    dms.forEach(dm => {
+      const li = document.createElement('li');
+      li.style.fontSize = '0.75rem';
+      li.style.padding = '4px 0';
+      li.style.cursor = 'pointer';
+      li.style.color = 'var(--text-main)';
+      li.innerHTML = `🟢 @${dm.username}`;
+      li.onclick = () => switchRoom(`dm-${dm.username}`);
+      userList.appendChild(li);
+    });
+  });
+}
+
 function sendMessage() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
   if (!text) return;
 
-  socket.emit('chat:send', { targetRoom: currentRoom, text });
+  socket.emit('chat:send', { 
+    targetRoom: currentRoom, 
+    text,
+    replyTo: replyToMessage ? { id: replyToMessage.id, sender: replyToMessage.sender, text: replyToMessage.text } : null
+  });
+
   input.value = '';
+  cancelReply();
 }
 
 function handleKeyPress(e) {
@@ -146,10 +183,31 @@ function handleKeyPress(e) {
 }
 
 socket.on('chat:message', (msg) => {
-  if (msg.targetRoom === currentRoom) {
+  const targetMatch = msg.targetRoom === currentRoom || msg.room === currentRoom;
+  if (targetMatch) {
     renderMessage(msg);
   }
+  loadDMsList();
 });
+
+function setReplyTo(id, sender, text) {
+  replyToMessage = { id, sender, text };
+  let previewBar = document.getElementById('reply-preview-bar');
+  if (!previewBar) {
+    previewBar = document.createElement('div');
+    previewBar.id = 'reply-preview-bar';
+    previewBar.style.cssText = 'background: rgba(147, 51, 234, 0.2); padding: 4px 8px; font-size: 0.75rem; border-left: 3px solid var(--accent-light); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;';
+    const inputArea = document.querySelector('.chat-input-area');
+    inputArea.insertBefore(previewBar, inputArea.firstChild);
+  }
+  previewBar.innerHTML = `<span>Replying to <strong>@${sender}</strong>: ${text.substring(0, 30)}...</span> <button onclick="cancelReply()" style="background:none; border:none; color:#ff8888; cursor:pointer;">✕</button>`;
+}
+
+function cancelReply() {
+  replyToMessage = null;
+  const previewBar = document.getElementById('reply-preview-bar');
+  if (previewBar) previewBar.remove();
+}
 
 function renderMessage(msg) {
   const container = document.getElementById('messages-container');
@@ -191,11 +249,19 @@ function renderMessage(msg) {
     `;
   } else {
     const canDelete = currentUser.username === msg.sender || currentUser.role.includes('Owner');
-    const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" style="background:none;border:none;color:#ff8888;cursor:pointer;font-size:0.7rem;float:right;">🗑️</button>` : '';
+    const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" style="background:none;border:none;color:#ff8888;cursor:pointer;font-size:0.7rem;float:right;margin-left:6px;">🗑️</button>` : '';
+    const replyBtn = `<button onclick="setReplyTo('${msg.id}', '${msg.sender}', \`${msg.text.replace(/`/g, '')}\`)" style="background:none;border:none;color:var(--accent-light);cursor:pointer;font-size:0.7rem;float:right;">↩️</button>`;
+
+    let replyContextHtml = '';
+    if (msg.replyTo) {
+      replyContextHtml = `<div style="font-size:0.7rem; background:rgba(0,0,0,0.2); padding:3px 6px; border-left:2px solid var(--accent-light); margin-bottom:4px; color:var(--text-muted);">Replying to @${msg.replyTo.sender}: ${msg.replyTo.text}</div>`;
+    }
 
     div.innerHTML = `
       <div class="msg-bubble glass-box">
         ${deleteBtn}
+        ${replyBtn}
+        ${replyContextHtml}
         <div style="font-size:0.75rem; color:var(--text-muted);">@${msg.sender} (${msg.role})</div>
         <div>${msg.text}</div>
       </div>
@@ -510,7 +576,11 @@ socket.on('users:update', (users) => {
     const li = document.createElement('li');
     li.style.fontSize = '0.75rem';
     li.style.padding = '3px 0';
+    li.style.cursor = 'pointer';
     li.textContent = `🟢 @${u.username}`;
+    if (u.username !== currentUser.username) {
+      li.onclick = () => switchRoom(`dm-${u.username}`);
+    }
     list.appendChild(li);
   });
 });
