@@ -237,6 +237,24 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback({ success: true });
   });
 
+  socket.on('profile:update', ({ tag, bio, paypalEmail }, callback) => {
+    const user = activeSockets[socket.id];
+    if (!user) return;
+    const cleanKey = user.username.toLowerCase();
+    if (db.registeredUsers[cleanKey]) {
+      if (tag) db.registeredUsers[cleanKey].tag = tag;
+      if (bio) db.registeredUsers[cleanKey].bio = bio;
+      if (paypalEmail) db.registeredUsers[cleanKey].paypalEmail = paypalEmail;
+      saveDB();
+      user.tag = db.registeredUsers[cleanKey].tag;
+      user.bio = db.registeredUsers[cleanKey].bio;
+      io.emit('users:update', Object.values(activeSockets));
+      if (typeof callback === 'function') callback({ success: true });
+    } else {
+      if (typeof callback === 'function') callback({ success: false, message: 'User not found' });
+    }
+  });
+
   socket.on('chat:send', (data) => {
     const user = activeSockets[socket.id];
     if (!user) return;
@@ -253,6 +271,10 @@ io.on('connection', (socket) => {
     } else if (data.targetRoom === 'editing-comp') {
       db.chatHistory['editing-comp'].push(payload);
       io.emit('chat:message', payload);
+    } else if (data.targetRoom === 'creator') {
+      if (!db.chatHistory.creator[user.username]) db.chatHistory.creator[user.username] = [];
+      db.chatHistory.creator[user.username].push(payload);
+      io.emit('chat:message', payload);
     }
     saveDB();
   });
@@ -260,7 +282,7 @@ io.on('connection', (socket) => {
   socket.on('chat:delete', ({ msgId, room }) => {
     const user = activeSockets[socket.id];
     if (!user) return;
-    let list = room === 'global' ? db.chatHistory.global : db.chatHistory['editing-comp'];
+    let list = room === 'global' ? db.chatHistory.global : room === 'editing-comp' ? db.chatHistory['editing-comp'] : (db.chatHistory.creator[user.username] || []);
     const idx = list.findIndex(m => m.id === msgId);
     if (idx !== -1 && (list[idx].sender === user.username || user.isOwner || user.isMod)) {
       list.splice(idx, 1);
@@ -322,17 +344,33 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback(db.assets); 
   });
 
+  socket.on('asset:upload', ({ name, category, url }) => {
+    const user = activeSockets[socket.id];
+    if (!user) return;
+    if (!Array.isArray(db.assets)) db.assets = [];
+    const newAsset = {
+      id: Date.now(),
+      name,
+      category,
+      url,
+      uploader: user.username
+    };
+    db.assets.push(newAsset);
+    saveDB();
+    io.emit('asset:updated');
+  });
+
   socket.on('asset:delete', ({ assetId }) => {
     const user = activeSockets[socket.id];
     if (!user) return;
-    if (!Array.isArray(db.assets)) db.assets = [...defaultDB.assets];
+    if (!Array.isArray(db.assets)) db.assets = [];
     const idx = db.assets.findIndex(a => a.id === assetId);
     if (idx !== -1) {
       const asset = db.assets[idx];
       if (user.isOwner || asset.uploader === user.username) {
         db.assets.splice(idx, 1);
         saveDB();
-        io.emit('asset:updated', db.assets);
+        io.emit('asset:updated');
       }
     }
   });
@@ -342,6 +380,33 @@ io.on('connection', (socket) => {
     if (!user || typeof callback !== 'function') return;
     if (room === 'global') callback(db.chatHistory.global || []);
     else if (room === 'editing-comp') callback(db.chatHistory['editing-comp'] || []);
+    else if (room === 'creator') callback(db.chatHistory.creator[user.username] || []);
+  });
+
+  socket.on('leaderboard:fetch', (callback) => {
+    const usersList = Object.values(db.registeredUsers).map(u => ({
+      username: u.username,
+      score: u.score || 0,
+      level: u.level || 'Novice',
+      selectedApp: u.selectedApp || 'After Effects'
+    }));
+    usersList.sort((a, b) => b.score - a.score);
+    if (typeof callback === 'function') callback(usersList);
+  });
+
+  socket.on('analytics:fetch', (callback) => {
+    if (typeof callback === 'function') {
+      callback({
+        registeredCount: Object.keys(db.registeredUsers).length,
+        activeOnline: Object.keys(activeSockets).length,
+        hoursUsed: (db.analytics.totalSecondsUsed / 3600).toFixed(2),
+        revenue: '$' + db.analytics.totalRevenue.toFixed(2)
+      });
+    }
+  });
+
+  socket.on('notifications:fetch', (callback) => {
+    if (typeof callback === 'function') callback(db.notifications || []);
   });
 
   socket.on('disconnect', () => {

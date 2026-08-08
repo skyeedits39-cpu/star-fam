@@ -401,9 +401,16 @@ function closeAssetsModal() {
 function fetchAssets() {
   socket.emit('asset:fetch', (assets) => {
     const list = document.getElementById('asset-list');
-    if (!list) return;
+    if (!list || !currentUser) return;
     list.innerHTML = '';
+    if (!assets || assets.length === 0) {
+      list.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No assets uploaded yet.</div>';
+      return;
+    }
     assets.forEach(asset => {
+      const canDelete = currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner') || asset.uploader === currentUser.username;
+      const deleteBtnHtml = canDelete ? `<button onclick="deleteAsset(${asset.id})" style="background:none; border:none; color:#ff8888; cursor:pointer; font-size:0.8rem; margin-left:8px;">🗑️ Delete</button>` : '';
+
       const div = document.createElement('div');
       div.className = 'glass-box';
       div.style.padding = '8px';
@@ -414,13 +421,26 @@ function fetchAssets() {
             <strong>${asset.name}</strong><br>
             <span style="color:var(--text-muted); font-size:0.7rem;">Category: ${asset.category} | By @${asset.uploader}</span>
           </div>
-          <a href="${asset.url}" target="_blank" style="color:var(--accent-light); text-decoration:none;">📥 Download</a>
+          <div style="display:flex; align-items:center;">
+            <a href="${asset.url}" target="_blank" style="color:var(--accent-light); text-decoration:none;">📥 Download</a>
+            ${deleteBtnHtml}
+          </div>
         </div>
       `;
       list.appendChild(div);
     });
   });
 }
+
+function deleteAsset(assetId) {
+  if (confirm('Are you sure you want to delete this asset?')) {
+    socket.emit('asset:delete', { assetId });
+  }
+}
+
+socket.on('asset:updated', () => {
+  fetchAssets();
+});
 
 async function uploadAssetToVault() {
   const name = document.getElementById('new-asset-name').value.trim();
@@ -433,12 +453,10 @@ async function uploadAssetToVault() {
   }
 
   const url = await uploadFileToServer(fileInput.files[0]);
-  socket.emit('asset:upload', { name, category, url }, () => {
-    alert('Asset uploaded successfully!');
-    document.getElementById('new-asset-name').value = '';
-    fileInput.value = '';
-    fetchAssets();
-  });
+  socket.emit('asset:upload', { name, category, url });
+  alert('Asset uploaded successfully!');
+  document.getElementById('new-asset-name').value = '';
+  fileInput.value = '';
 }
 
 // ANALYTICS & NOTIFICATIONS
