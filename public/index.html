@@ -88,17 +88,20 @@
     </aside>
 
     <!-- RIGHT DISPLAY AREA -->
-    <main class="chat-main glass-box">
+    <main class="chat-main glass-box mobile-hidden">
       <header class="chat-header">
-        <div>
-          <h2 id="room-title">👑 Creator Direct Chat</h2>
-          <span id="room-desc" style="font-size: 0.75rem; color: var(--text-muted);">Direct private communication line with @starediter1</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="mobile-toggle-btn" class="btn-secondary mobile-toggle-btn" onclick="toggleMobileView('sidebar')" style="font-size: 0.75rem; padding: 6px 10px;">☰ Menu</button>
+          <div>
+            <h2 id="room-title" style="font-size: 1rem;">👑 Creator Direct Chat</h2>
+            <span id="room-desc" style="font-size: 0.7rem; color: var(--text-muted);">Direct private communication line with @starediter1</span>
+          </div>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <button id="btn-create-poll" class="btn-secondary hidden" onclick="openPollModal()" style="font-size: 0.75rem;">📊 New Poll</button>
-          <button id="btn-analytics" class="btn-secondary hidden" onclick="openAnalytics()" style="font-size: 0.75rem;">📊 Analytics</button>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button id="btn-create-poll" class="btn-secondary hidden" onclick="openPollModal()" style="font-size: 0.7rem; padding: 6px 8px;">📊 Poll</button>
+          <button id="btn-analytics" class="btn-secondary hidden" onclick="openAnalytics()" style="font-size: 0.7rem; padding: 6px 8px;">📊 Stats</button>
           <div style="position: relative;">
-            <button id="btn-notif-bell" class="btn-secondary hidden" onclick="toggleNotifBox()" style="font-size: 0.75rem;">🔔</button>
+            <button id="btn-notif-bell" class="btn-secondary hidden" onclick="toggleNotifBox()" style="font-size: 0.7rem; padding: 6px 8px;">🔔</button>
             <div id="notif-box" class="glass-box hidden" style="position: absolute; right: 0; top: 35px; width: 220px; padding: 10px; z-index: 50;">
               <div style="font-size: 0.75rem; font-weight: bold; margin-bottom: 5px;">Notifications</div>
               <ul id="notif-list" style="list-style: none; padding: 0; margin: 0;"></ul>
@@ -108,7 +111,7 @@
       </header>
 
       <!-- CHAT VIEW SECTION -->
-      <div id="chat-active-area" style="display: flex; flex-direction: column; flex: 1;">
+      <div id="chat-active-area" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
         <div id="messages-container" class="messages-container">
           <!-- Messages populate here -->
         </div>

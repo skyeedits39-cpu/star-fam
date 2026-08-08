@@ -138,6 +138,27 @@ function switchRoom(room) {
     document.getElementById('btn-create-poll').classList.add('hidden');
     loadRoomContent();
   }
+
+  // On mobile screens, automatically toggle back to chat view when a room is clicked
+  if (window.innerWidth <= 768) {
+    toggleMobileView('chat');
+  }
+}
+
+function toggleMobileView(view) {
+  const sidebar = document.querySelector('.sidebar');
+  const chatMain = document.querySelector('.chat-main');
+  const toggleBtn = document.getElementById('mobile-toggle-btn');
+
+  if (view === 'sidebar') {
+    sidebar.classList.remove('mobile-hidden');
+    chatMain.classList.add('mobile-hidden');
+    if (toggleBtn) toggleBtn.textContent = '💬 Open Chat';
+  } else {
+    sidebar.classList.add('mobile-hidden');
+    chatMain.classList.remove('mobile-hidden');
+    if (toggleBtn) toggleBtn.textContent = '☰ Menu';
+  }
 }
 
 function loadRoomContent() {
