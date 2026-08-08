@@ -32,9 +32,55 @@ function openRecoveryScreen() {
   document.getElementById('recovery-form').classList.remove('hidden');
 }
 
+// Form Submission Listeners
+document.addEventListener('DOMContentLoaded', () => {
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const identifier = document.getElementById('login-id').value.trim();
+      const pin = document.getElementById('login-pin').value.trim();
+      
+      socket.emit('auth:login', { identifier, pin }, (res) => {
+        if (!res.success) {
+          alert(res.message);
+        }
+      });
+    });
+  }
+
+  const signupForm = document.getElementById('signup-form');
+  if (signupForm) {
+    signupForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const username = document.getElementById('signup-username').value.trim();
+      const pin = document.getElementById('signup-pin').value.trim();
+      const tag = document.getElementById('signup-tag').value.trim();
+      const bio = document.getElementById('signup-bio').value.trim();
+      const fileInput = document.getElementById('pfp-file-input');
+
+      if (fileInput && fileInput.files[0]) {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        fetch('/api/upload', { method: 'POST', body: formData })
+          .then(res => res.json())
+          .then(data => {
+            socket.emit('auth:signup', { username, pin, tag, bio, pfp: data.url }, (res) => {
+              if (!res.success) alert(res.message);
+            });
+          })
+          .catch(err => console.error('PFP Upload error:', err));
+      } else {
+        socket.emit('auth:signup', { username, pin, tag, bio, pfp: null }, (res) => {
+          if (!res.success) alert(res.message);
+        });
+      }
+    });
+  }
+});
+
 // Listen for real-time messages across all rooms including direct messages
 socket.on('chat:message', (data) => {
-  // If the message belongs to the current active room or active DM thread, append it instantly
   if (currentRoom === data.targetRoom || currentRoom === data.room) {
     appendMessage(data);
     scrollToBottom();
@@ -55,7 +101,6 @@ function switchRoom(roomName) {
     document.getElementById('room-title').innerText = '💖 Donations & Edits';
     document.getElementById('room-desc').innerText = 'Support the creator and order custom personal edits';
     
-    // Toggle views
     document.getElementById('chat-active-area').classList.add('hidden');
     document.getElementById('support-section-view').classList.remove('hidden');
     return;
@@ -64,7 +109,6 @@ function switchRoom(roomName) {
   document.getElementById('chat-active-area').classList.remove('hidden');
   document.getElementById('support-section-view').classList.add('hidden');
 
-  // Load chat history for the room
   document.getElementById('messages-container').innerHTML = '';
   socket.emit('chat:fetch_history', { room: currentRoom }, (history) => {
     history.forEach(msg => appendMessage(msg));
@@ -76,14 +120,12 @@ function openDirectMessage(recipientUsername) {
   const cleanRecipient = recipientUsername.toLowerCase();
   currentRoom = `dm-${cleanRecipient}`;
   
-  // Update UI headers
   document.getElementById('room-title').innerText = `💬 DM with @${recipientUsername}`;
   document.getElementById('room-desc').innerText = `Private secure messaging thread`;
   
   document.getElementById('chat-active-area').classList.remove('hidden');
   document.getElementById('support-section-view').classList.add('hidden');
 
-  // Clear messages container and fetch history for this specific DM thread
   document.getElementById('messages-container').innerHTML = '';
   socket.emit('chat:fetch_history', { room: currentRoom }, (history) => {
     history.forEach(msg => appendMessage(msg));
@@ -143,7 +185,6 @@ function scrollToBottom() {
   container.scrollTop = container.scrollHeight;
 }
 
-// Listen for list of users and DMs update
 socket.on('users:update', (users) => {
   activeUsersList = users;
   renderUserList();
