@@ -128,6 +128,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const recoveryForm = document.getElementById('recovery-form');
+  if (recoveryForm) {
+    recoveryForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const identifier = document.getElementById('recover-id').value.trim();
+      const code = document.getElementById('recover-code').value.trim();
+      const newPin = document.getElementById('recover-new-pin').value.trim();
+      socket.emit('auth:recover', { identifier, code, newPin }, (res) => {
+        if (res.success) {
+          alert('PIN successfully reset! Please log in.');
+          setAuthMode('login');
+        } else {
+          alert(res.message || 'Recovery failed.');
+        }
+      });
+    });
+  }
+
   if (!document.getElementById('sticker-drawer')) {
     const drawer = document.createElement('div');
     drawer.id = 'sticker-drawer';
@@ -202,25 +220,34 @@ socket.on('chat:refresh', () => {
 
 function switchRoom(roomName) {
   currentRoom = roomName;
+  
+  // Reset visibility of views
+  document.getElementById('chat-active-area').classList.add('hidden');
+  document.getElementById('support-section-view').classList.add('hidden');
+  document.getElementById('download-section-view').classList.add('hidden');
+
   if (roomName === 'global') {
     document.getElementById('room-title').innerText = '🌐 Community Lounge';
     document.getElementById('room-desc').innerText = 'General community discussions & sharing';
+    document.getElementById('chat-active-area').classList.remove('hidden');
   } else if (roomName === 'editing-comp') {
     document.getElementById('room-title').innerText = '🏆 Editing Comp';
     document.getElementById('room-desc').innerText = 'Share edits, get feedback, and compete';
+    document.getElementById('chat-active-area').classList.remove('hidden');
   } else if (roomName === 'support-hub') {
     document.getElementById('room-title').innerText = '💖 Donations & Edits';
     document.getElementById('room-desc').innerText = 'Support the creator and order custom personal edits';
-    document.getElementById('chat-active-area').classList.add('hidden');
     document.getElementById('support-section-view').classList.remove('hidden');
-    document.getElementById('sidebar-menu').classList.remove('mobile-open');
-    return;
+  } else if (roomName === 'download-hub') {
+    document.getElementById('room-title').innerText = '📱 Download Android App';
+    document.getElementById('room-desc').innerText = 'Install StarFam directly on your Android device for free';
+    document.getElementById('download-section-view').classList.remove('hidden');
   }
 
-  document.getElementById('chat-active-area').classList.remove('hidden');
-  document.getElementById('support-section-view').classList.add('hidden');
   document.getElementById('sidebar-menu').classList.remove('mobile-open');
-  loadChatHistory(currentRoom);
+  if (roomName !== 'support-hub' && roomName !== 'download-hub') {
+    loadChatHistory(currentRoom);
+  }
 }
 
 function openDirectMessage(recipientUsername) {
@@ -228,9 +255,12 @@ function openDirectMessage(recipientUsername) {
   currentRoom = `dm-${cleanRecipient}`;
   document.getElementById('room-title').innerText = `💬 DM with @${recipientUsername}`;
   document.getElementById('room-desc').innerText = `Private secure messaging thread`;
+  
   document.getElementById('chat-active-area').classList.remove('hidden');
   document.getElementById('support-section-view').classList.add('hidden');
+  document.getElementById('download-section-view').classList.add('hidden');
   document.getElementById('sidebar-menu').classList.remove('mobile-open');
+  
   loadChatHistory(currentRoom);
 }
 
