@@ -356,8 +356,6 @@ function openMyProfile() {
   document.getElementById('edit-tag').value = currentUser.tag;
   document.getElementById('edit-bio').value = currentUser.bio;
   document.getElementById('edit-paypal').value = currentUser.paypalEmail || '';
-  
-  // Hide edit section by default when opening modal
   document.getElementById('edit-profile-section').classList.add('hidden');
 }
 
@@ -452,47 +450,121 @@ function closeLeaderboardModal() {
 }
 
 // TRIVIA ARCADE
+let currentSelectedApp = 'After Effects';
+let currentTriviaQuestion = null;
+let selectedAnswerIndex = null;
+let sessionTriviaScore = 0;
+
+const triviaBank = {
+  "After Effects": [
+    { q: "What tool is primarily used for 3D camera tracking in After Effects?", options: ["Camera Tracker", "Pen Tool", "Hand Tool", "Puppet Pin"], correct: 0 },
+    { q: "Which key shortcut opens the Position property of a layer?", options: ["S", "T", "P", "R"], correct: 2 },
+    { q: "What layer type is used to apply effects to multiple layers underneath it?", options: ["Solid Layer", "Adjustment Layer", "Shape Layer", "Text Layer"], correct: 1 },
+    { q: "What file extension is standard for an After Effects project file?", options: [".aep", ".mp4", ".mov", ".prproj"], correct: 0 },
+    { q: "Which property controls the transparency of a layer in After Effects?", options: ["Opacity", "Scale", "Rotation", "Position"], correct: 0 }
+  ],
+  "CapCut": [
+    { q: "What feature is popular in CapCut for smooth slow-motion velocity edits?", options: ["Curve Speed", "Chroma Key", "Keyframing", "Masking"], correct: 0 },
+    { q: "Which tool removes a solid background color in CapCut?", options: ["Mask", "Chroma Key", "Split", "Blend Mode"], correct: 1 },
+    { q: "What type of effect creates glowing edge outlines in CapCut edits?", options: ["Edge Glow / Blur", "Crop", "Canvas", "Reverse"], correct: 0 },
+    { q: "How do you split a clip at the playhead position?", options: ["Split / Cut Button", "Delete", "Export", "Speed Up"], correct: 0 },
+    { q: "What feature matches professional beats automatically in CapCut?", options: ["Auto Beat Sync", "Canvas", "Reverse", "Chroma Key"], correct: 0 }
+  ],
+  "Alight Motion": [
+    { q: "Alight Motion is widely recognized as a powerful editor for which device platform?", options: ["Mobile (iOS/Android)", "Cinema Projectors", "Consoles Only", "VR Headsets"], correct: 0 },
+    { q: "What feature allows smooth transitions using math curves in Alight Motion?", options: ["Graph / Keyframe Curves", "Filters", "Audio Beats", "Watermark"], correct: 0 },
+    { q: "What effect bends or distorts layers smoothly in Alight Motion?", options: ["Warp / Wave Warp", "Crop", "Solid Fill", "Volume Boost"], correct: 0 },
+    { q: "How do you duplicate a selected layer quickly?", options: ["Layer Duplicate Button", "Reinstall App", "Clear Cache", "Mute Audio"], correct: 0 },
+    { q: "Which element lets you group multiple elements into one animation container?", options: ["Group / Ungroup", "Split", "Delete", "Export"], correct: 0 }
+  ],
+  "Blur": [
+    { q: "What is Blur app primarily utilized for by edit creators?", options: ["Smooth velocity and transition edits", "Spreadsheet management", "Vector logo design", "Coding websites"], correct: 0 },
+    { q: "Keyframes in Blur help control what property over time?", options: ["Motion, scale, and opacity", "Battery percentage", "File size", "Storage limit"], correct: 0 },
+    { q: "What type of clips benefit most from Blur's optical flow motion effects?", options: ["Fast-paced anime or cinematic clips", "Static pictures", "Plain text", "Audio waveforms"], correct: 0 },
+    { q: "How do you fine-tune timing in Blur?", options: ["Trimming and splitting timelines", "Restarting phone", "Changing wallpaper", "Turning off Wi-Fi"], correct: 0 },
+    { q: "What format do users usually export finished edits from Blur in?", options: ["MP4 / Video File", "TXT", "HTML", "EXE"], correct: 0 }
+  ],
+  "Video Star": [
+    { q: "Video Star is legendary for editing music videos on which operating system?", options: ["iOS / iPhone", "Windows 95", "Linux Ubuntu", "MS-DOS"], correct: 0 },
+    { q: "What coloring feature lets you color grade clips frame-by-frame in Video Star?", options: ["Multi-Layer / Coloring Effects", "Calculator", "Notes", "Contacts"], correct: 0 },
+    { q: "What makes Video Star transitions seamless when timed right?", options: ["Beat markers and keyframes", "Random cutting", "Muting audio", "Deleting clips"], correct: 0 },
+    { q: "Which subscription tier unlocks advanced multi-layer effects in Video Star?", options: ["All Access Pass", "Free Trial Forever", "Basic Mode", "Offline Pass"], correct: 0 },
+    { q: "What tool lets you re-time actions precisely inside Video Star?", options: ["Re-time Tool", "Delete Tool", "Brightness Slider", "Volume Muter"], correct: 0 }
+  ]
+};
+
 function openTriviaModal() {
   document.getElementById('trivia-modal').classList.remove('hidden');
   document.getElementById('trivia-app-select').classList.remove('hidden');
   document.getElementById('trivia-game-box').classList.add('hidden');
+  sessionTriviaScore = 0;
 }
 
 function closeTriviaModal() {
   document.getElementById('trivia-modal').classList.add('hidden');
 }
 
-let triviaScore = 0;
 function startTriviaGame() {
   const appDropdown = document.getElementById('selected-app-dropdown');
-  const selectedApp = appDropdown ? appDropdown.value : 'After Effects';
+  currentSelectedApp = appDropdown ? appDropdown.value : 'After Effects';
   
   document.getElementById('trivia-app-select').classList.add('hidden');
   document.getElementById('trivia-game-box').classList.remove('hidden');
   
-  document.getElementById('quiz-level-tag').textContent = `App: ${selectedApp}`;
-  document.getElementById('quiz-score-tag').textContent = `Points: ${triviaScore}`;
-  document.getElementById('trivia-question').textContent = `${selectedApp} specializes in what type of editing feature?`;
-  
-  const optionsContainer = document.getElementById('trivia-options');
-  optionsContainer.innerHTML = `
-    <button class="btn-secondary" onclick="answerTrivia(true)" style="width:100%; margin-bottom:6px; text-align:left;">3D Camera & Velocity</button>
-    <button class="btn-secondary" onclick="answerTrivia(false)" style="width:100%; margin-bottom:6px; text-align:left;">Color Grading</button>
-  `;
+  loadNextTriviaQuestion();
 }
 
-function answerTrivia(isCorrect) {
-  if (isCorrect) {
-    triviaScore += 20;
-    alert('Correct! +20 points 🎉');
-  } else {
-    alert('Incorrect! Try the next question.');
-  }
-  document.getElementById('quiz-score-tag').textContent = `Points: ${triviaScore}`;
+function loadNextTriviaQuestion() {
+  selectedAnswerIndex = null;
+  const questions = triviaBank[currentSelectedApp] || triviaBank["After Effects"];
+  currentTriviaQuestion = questions[Math.floor(Math.random() * questions.length)];
+
+  document.getElementById('quiz-level-tag').textContent = `App: ${currentSelectedApp}`;
+  document.getElementById('quiz-score-tag').textContent = `Points: ${sessionTriviaScore}`;
+  document.getElementById('trivia-question').textContent = currentTriviaQuestion.q;
+
+  const optionsContainer = document.getElementById('trivia-options');
+  optionsContainer.innerHTML = '';
+
+  currentTriviaQuestion.options.forEach((opt, index) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-secondary';
+    btn.style.cssText = 'width: 100%; margin-bottom: 6px; text-align: left; display: block;';
+    btn.textContent = opt;
+    btn.onclick = () => selectTriviaOption(index, btn);
+    optionsContainer.appendChild(btn);
+  });
+}
+
+function selectTriviaOption(index, btnElement) {
+  document.querySelectorAll('#trivia-options button').forEach(b => {
+    b.style.borderColor = 'var(--border-color)';
+    b.style.background = 'rgba(147, 51, 234, 0.15)';
+  });
+  selectedAnswerIndex = index;
+  btnElement.style.borderColor = 'var(--accent-light)';
+  btnElement.style.background = 'rgba(147, 51, 234, 0.4)';
 }
 
 function submitTriviaAnswerAndNext() {
-  startTriviaGame();
+  if (selectedAnswerIndex === null) {
+    alert('Please select an option before moving to the next question!');
+    return;
+  }
+
+  const isCorrect = (selectedAnswerIndex === currentTriviaQuestion.correct);
+  if (isCorrect) {
+    sessionTriviaScore += 5;
+  }
+
+  socket.emit('trivia:submit', { score: isCorrect ? 5 : 0, selectedApp: currentSelectedApp }, (res) => {
+    if (res && res.success) {
+      currentUser.score = res.totalScore;
+      currentUser.level = res.level;
+    }
+  });
+
+  loadNextTriviaQuestion();
 }
 
 // ASSET VAULT

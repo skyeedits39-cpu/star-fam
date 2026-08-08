@@ -68,22 +68,6 @@ try {
   fs.writeFileSync(dataFilePath, JSON.stringify(defaultDB, null, 2));
 }
 
-if (!db.registeredUsers["starediter1"]) {
-  db.registeredUsers["starediter1"] = {
-    username: "starediter1",
-    pin: "2030",
-    tag: "@starediter1",
-    bio: "VFX Motion Editor & Owner",
-    pfp: null,
-    paypalEmail: "starediter1@gmail.com",
-    role: "Owner 👑",
-    score: 0,
-    level: "Novice",
-    selectedApp: "After Effects",
-    createdAt: new Date()
-  };
-}
-
 function saveDB() {
   try {
     fs.writeFileSync(dataFilePath, JSON.stringify(db, null, 2));
@@ -265,6 +249,34 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('trivia:submit', ({ score, selectedApp }, callback) => {
+    const user = activeSockets[socket.id];
+    if (!user) return;
+    const cleanKey = user.username.toLowerCase();
+    if (db.registeredUsers[cleanKey]) {
+      db.registeredUsers[cleanKey].score = (db.registeredUsers[cleanKey].score || 0) + score;
+      db.registeredUsers[cleanKey].selectedApp = selectedApp;
+      if (db.registeredUsers[cleanKey].score >= 100) {
+        db.registeredUsers[cleanKey].level = 'Pro 🔥';
+      } else if (db.registeredUsers[cleanKey].score >= 50) {
+        db.registeredUsers[cleanKey].level = 'Expert ⚡';
+      }
+      saveDB();
+      if (typeof callback === 'function') callback({ success: true, totalScore: db.registeredUsers[cleanKey].score, level: db.registeredUsers[cleanKey].level });
+    }
+  });
+
+  socket.on('leaderboard:fetch', (callback) => {
+    const usersList = Object.values(db.registeredUsers).map(u => ({
+      username: u.username,
+      score: u.score || 0,
+      level: u.level || 'Novice',
+      selectedApp: u.selectedApp || 'After Effects'
+    }));
+    usersList.sort((a, b) => b.score - a.score);
+    if (typeof callback === 'function') callback(usersList);
+  });
+
   socket.on('chat:send', (data) => {
     const user = activeSockets[socket.id];
     if (!user) return;
@@ -426,17 +438,6 @@ io.on('connection', (socket) => {
       }
     });
     callback(dms);
-  });
-
-  socket.on('leaderboard:fetch', (callback) => {
-    const usersList = Object.values(db.registeredUsers).map(u => ({
-      username: u.username,
-      score: u.score || 0,
-      level: u.level || 'Novice',
-      selectedApp: u.selectedApp || 'After Effects'
-    }));
-    usersList.sort((a, b) => b.score - a.score);
-    if (typeof callback === 'function') callback(usersList);
   });
 
   socket.on('analytics:fetch', (callback) => {
