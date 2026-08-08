@@ -1,6 +1,7 @@
 {
   "name": "Star Fam",
   "short_name": "StarFam",
+  "description": "Your personal real-time community hub and messaging platform for creators.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#09090b",
