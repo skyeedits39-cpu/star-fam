@@ -8,14 +8,14 @@
   "theme_color": "#8b5cf6",
   "icons": [
     {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/2/26/Purple_star.svg",
+      "src": "https://cdn-icons-png.flaticon.com/512/1828/1828884.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png"
     },
     {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/2/26/Purple_star.svg",
+      "src": "https://cdn-icons-png.flaticon.com/512/1828/1828884.png",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/png"
     }
   ]
 }
