@@ -1,153 +1,149 @@
 const socket = io();
 
 let currentUser = null;
-let currentRoom = 'global';
+let currentRoom = 'creator';
 
 const authOverlay = document.getElementById('auth-overlay');
-const loginTabBtn = document.getElementById('login-tab-btn');
-const signupTabBtn = document.getElementById('signup-tab-btn');
-const loginForm = document.getElementById('login-form');
-const signupForm = document.getElementById('signup-form');
+const mainAppContainer = document.getElementById('app');
 
-function switchAuthTab(tab) {
-  if (tab === 'login') {
-    if (loginTabBtn) loginTabBtn.classList.add('active');
-    if (signupTabBtn) signupTabBtn.classList.remove('active');
-    if (loginForm) loginForm.classList.remove('hidden');
-    if (signupForm) signupForm.classList.add('hidden');
-  } else {
-    if (signupTabBtn) signupTabBtn.classList.add('active');
-    if (loginTabBtn) loginTabBtn.classList.remove('active');
-    if (signupForm) signupForm.classList.remove('hidden');
-    if (loginForm) loginForm.classList.add('hidden');
+function setAuthMode(mode) {
+  const loginForm = document.getElementById('login-form');
+  const signupForm = document.getElementById('signup-form');
+  const recoveryForm = document.getElementById('recovery-form');
+  const btnLogin = document.getElementById('btn-toggle-login');
+  const btnSignup = document.getElementById('btn-toggle-signup');
+
+  if (!loginForm || !signupForm || !recoveryForm) return;
+
+  loginForm.classList.add('hidden');
+  signupForm.classList.add('hidden');
+  recoveryForm.classList.add('hidden');
+  if (btnLogin) btnLogin.classList.remove('active');
+  if (btnSignup) btnSignup.classList.remove('active');
+
+  if (mode === 'login') {
+    loginForm.classList.remove('hidden');
+    if (btnLogin) btnLogin.classList.add('active');
+  } else if (mode === 'signup') {
+    signupForm.classList.remove('hidden');
+    if (btnSignup) btnSignup.classList.add('active');
   }
 }
 
-const loginBtn = document.getElementById('login-btn');
-if (loginBtn) {
-  loginBtn.addEventListener('click', (e) => {
+function openRecoveryScreen() {
+  document.getElementById('login-form').classList.add('hidden');
+  document.getElementById('signup-form').classList.add('hidden');
+  document.getElementById('recovery-form').classList.remove('hidden');
+}
+
+// LOGIN SUBMISSION
+const loginFormEl = document.getElementById('login-form');
+if (loginFormEl) {
+  loginFormEl.addEventListener('submit', (e) => {
     e.preventDefault();
-    const identifierEl = document.getElementById('login-username');
-    const pinEl = document.getElementById('login-pin');
-    
-    const identifier = identifierEl ? identifierEl.value.trim() : '';
-    const pin = pinEl ? pinEl.value.trim() : '';
+    const identifier = document.getElementById('login-id').value.trim();
+    const pin = document.getElementById('login-pin').value.trim();
 
-    if (!identifier || !pin) {
-      alert('Please enter both username/tag and PIN.');
-      return;
-    }
-
-    socket.emit('auth:login', { identifier, pin }, (response) => {
-      if (response && !response.success) {
-        alert(response.message);
+    socket.emit('auth:login', { identifier, pin }, (res) => {
+      if (!res.success) {
+        alert(res.message);
       }
     });
   });
 }
 
-const signupBtn = document.getElementById('signup-btn');
-if (signupBtn) {
-  signupBtn.addEventListener('click', (e) => {
+// SIGNUP SUBMISSION
+const signupFormEl = document.getElementById('signup-form');
+if (signupFormEl) {
+  signupFormEl.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const usernameEl = document.getElementById('signup-username');
-    const pinEl = document.getElementById('signup-pin');
-    
-    const username = usernameEl ? usernameEl.value.trim() : '';
-    const pin = pinEl ? pinEl.value.trim() : '';
+    const username = document.getElementById('signup-username').value.trim();
+    const pin = document.getElementById('signup-pin').value.trim();
+    const tag = document.getElementById('signup-tag').value.trim();
+    const bio = document.getElementById('signup-bio').value.trim();
+    let pfp = document.getElementById('signup-pfp').value.trim();
 
-    if (!username || !pin) {
-      alert('Please fill out all fields.');
-      return;
+    const fileInput = document.getElementById('pfp-file-input');
+    if (fileInput && fileInput.files[0]) {
+      pfp = await uploadFileToServer(fileInput.files[0]);
     }
 
-    socket.emit('auth:signup', { username, pin }, (response) => {
-      if (response && !response.success) {
-        alert(response.message);
+    socket.emit('auth:signup', { username, pin, tag, bio, pfp }, (res) => {
+      if (!res.success) {
+        alert(res.message);
       }
     });
   });
 }
 
+// AUTH SUCCESS: Hides login overlay and reveals main app
 socket.on('auth:success', (user) => {
   currentUser = user;
-  
-  // Hide login overlay correctly like before
-  if (authOverlay) {
-    authOverlay.style.display = 'none';
-    authOverlay.classList.add('hidden');
+
+  if (authOverlay) authOverlay.classList.add('hidden');
+  if (mainAppContainer) mainAppContainer.classList.remove('hidden');
+
+  // Update profile block in sidebar
+  document.getElementById('my-name').textContent = user.username;
+  document.getElementById('my-tag').textContent = user.tag;
+  document.getElementById('my-role').textContent = user.role;
+  document.getElementById('my-avatar').textContent = user.username.charAt(0).toUpperCase();
+
+  if (user.username.toLowerCase() === 'starediter1' || user.role.includes('Owner')) {
+    document.getElementById('btn-analytics').classList.remove('hidden');
+    document.getElementById('btn-notif-bell').classList.remove('hidden');
   }
 
-  const mainApp = document.getElementById('main-app') || document.querySelector('.app-container');
-  if (mainApp) {
-    mainApp.classList.remove('hidden');
-    mainApp.style.display = 'flex';
-  }
-  
-  const profileUsername = document.getElementById('profile-username');
-  const profileHandle = document.getElementById('profile-handle');
-  const profileBadge = document.getElementById('profile-badge');
-  const profileAvatar = document.getElementById('profile-avatar');
-
-  if (profileUsername) profileUsername.textContent = user.username;
-  if (profileHandle) profileHandle.textContent = user.tag || `@${user.username}`;
-  if (profileBadge) profileBadge.textContent = user.role;
-  if (profileAvatar) profileAvatar.textContent = user.username.charAt(0).toUpperCase();
-  
   loadRoomContent();
 });
 
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    const targetBtn = e.currentTarget;
-    targetBtn.classList.add('active');
-    
-    currentRoom = targetBtn.dataset.room || 'global';
-    const roomTitle = document.getElementById('current-room-title');
-    if (roomTitle) roomTitle.textContent = targetBtn.textContent.trim();
-    
-    loadRoomContent();
-  });
-});
+function switchRoom(room) {
+  currentRoom = room;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  
+  if (room === 'creator') {
+    document.getElementById('btn-creator').classList.add('active');
+    document.getElementById('room-title').textContent = '👑 Creator Direct Chat';
+    document.getElementById('room-desc').textContent = 'Direct private communication line with @starediter1';
+    document.getElementById('btn-create-poll').classList.add('hidden');
+  } else if (room === 'global') {
+    document.getElementById('btn-global').classList.add('active');
+    document.getElementById('room-title').textContent = '🌐 Community Lounge';
+    document.getElementById('room-desc').textContent = 'Public lounge for presets, edits & polls';
+    document.getElementById('btn-create-poll').classList.remove('hidden');
+  } else if (room === 'editing-comp') {
+    document.getElementById('btn-comp').classList.add('active');
+    document.getElementById('room-title').textContent = '🏆 Editing Comp';
+    document.getElementById('room-desc').textContent = 'Official Editing Competition channel!';
+    document.getElementById('btn-create-poll').classList.remove('hidden');
+  }
+
+  loadRoomContent();
+}
 
 function loadRoomContent() {
-  const container = document.getElementById('messages-container');
-  if (!container) return;
-  container.innerHTML = '';
-  
   socket.emit('chat:fetch_history', { room: currentRoom }, (messages) => {
-    socket.emit('poll:fetch', currentRoom, (polls) => {
-      container.innerHTML = '';
-      if (messages) messages.forEach(msg => renderMessage(msg));
-      if (polls) polls.forEach(poll => renderMessage({ ...poll, type: 'poll', sender: poll.creator }));
-    });
+    const container = document.getElementById('messages-container');
+    container.innerHTML = '';
+    messages.forEach(msg => renderMessage(msg));
+  });
+  
+  socket.emit('poll:fetch', currentRoom, (polls) => {
+    renderPolls(polls);
   });
 }
 
 function sendMessage() {
   const input = document.getElementById('message-input');
-  if (!input) return;
   const text = input.value.trim();
-
   if (!text) return;
 
-  socket.emit('chat:send', {
-    targetRoom: currentRoom,
-    text: text
-  });
-
+  socket.emit('chat:send', { targetRoom: currentRoom, text });
   input.value = '';
 }
 
-const sendBtn = document.getElementById('send-btn');
-if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-
-const messageInput = document.getElementById('message-input');
-if (messageInput) {
-  messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-  });
+function handleKeyPress(e) {
+  if (e.key === 'Enter') sendMessage();
 }
 
 socket.on('chat:message', (msg) => {
@@ -156,64 +152,22 @@ socket.on('chat:message', (msg) => {
   }
 });
 
-socket.on('chat:refresh', ({ room }) => {
-  if (room === currentRoom) {
-    loadRoomContent();
-  }
-});
-
 function renderMessage(msg) {
   const container = document.getElementById('messages-container');
-  if (!container || !currentUser) return;
+  const div = document.createElement('div');
+  div.className = `message-row ${msg.sender === currentUser.username ? 'my-msg' : ''}`;
   
-  const row = document.createElement('div');
-  row.className = `message-row ${msg.sender === currentUser.username ? 'my-msg' : ''}`;
+  const canDelete = currentUser.username === msg.sender || currentUser.role.includes('Owner');
+  const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" style="background:none;border:none;color:#ff8888;cursor:pointer;font-size:0.7rem;float:right;">🗑️</button>` : '';
 
-  if (msg.type === 'poll') {
-    let optionsHtml = '';
-    const totalVotes = msg.options ? msg.options.reduce((acc, opt) => acc + (opt.votes ? opt.votes.length : 0), 0) : 0;
-
-    msg.options.forEach((opt, index) => {
-      const voteCount = opt.votes ? opt.votes.length : 0;
-      const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-
-      optionsHtml += `
-        <div onclick="voteOnPoll('${msg.id}', ${index})" style="background: rgba(147, 51, 234, 0.15); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; margin-bottom: 4px; cursor: pointer; position: relative; overflow: hidden;">
-          <div style="position: absolute; top:0; left:0; bottom:0; width: ${percentage}%; background: rgba(147, 51, 234, 0.3); z-index: 1;"></div>
-          <div style="display: flex; justify-content: space-between; position: relative; z-index: 2; font-size: 0.8rem;">
-            <span>${opt.text}</span>
-            <span style="color: var(--accent-light);">${percentage}% (${voteCount})</span>
-          </div>
-        </div>
-      `;
-    });
-
-    const canDeletePoll = currentUser.username === msg.sender || currentUser.role.includes('Owner');
-    const deleteBtn = canDeletePoll ? `<button onclick="deletePoll('${msg.id}')" style="background:none; border:none; color:#ff8888; font-size:0.7rem; cursor:pointer; float:right;">🗑️ Delete</button>` : '';
-
-    row.innerHTML = `
-      <div class="msg-bubble glass-box" style="width: 260px; max-width: 90%; padding: 10px;">
-        ${deleteBtn}
-        <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">📊 Poll by @${msg.sender}</div>
-        <div style="font-weight:bold; font-size:0.85rem; margin-bottom:8px;">${msg.question}</div>
-        ${optionsHtml}
-        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px; text-align:right;">Total Votes: ${totalVotes}</div>
-      </div>
-    `;
-  } else {
-    const canDeleteMsg = currentUser.username === msg.sender || currentUser.role.includes('Owner');
-    const deleteMsgBtn = canDeleteMsg ? `<button onclick="deleteMessage('${msg.id}')" style="background:none; border:none; color:#ff8888; font-size:0.65rem; cursor:pointer; float:right; margin-left:6px;">🗑️</button>` : '';
-
-    row.innerHTML = `
-      <div class="msg-bubble glass-box">
-        ${deleteMsgBtn}
-        <div style="font-size:0.7rem; color:var(--text-muted);">@${msg.sender}</div>
-        <div>${msg.text}</div>
-      </div>
-    `;
-  }
-
-  container.appendChild(row);
+  div.innerHTML = `
+    <div class="msg-bubble glass-box">
+      ${deleteBtn}
+      <div style="font-size:0.75rem; color:var(--text-muted);">@${msg.sender} (${msg.role})</div>
+      <div>${msg.text}</div>
+    </div>
+  `;
+  container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
 
@@ -221,111 +175,110 @@ function deleteMessage(msgId) {
   socket.emit('chat:delete', { msgId, room: currentRoom });
 }
 
-function voteOnPoll(pollId, optionIdx) {
-  socket.emit('poll:vote', { pollId, optionIdx });
-}
-
-function deletePoll(pollId) {
-  if (confirm('Are you sure you want to delete this poll?')) {
-    socket.emit('poll:delete', { pollId });
-  }
-}
-
-socket.on('poll:updated', ({ room }) => {
-  if (room === currentRoom) {
-    loadRoomContent();
-  }
+socket.on('chat:refresh', () => {
+  loadRoomContent();
 });
 
-function openPollModal() {
-  const modal = document.getElementById('poll-modal');
-  if (modal) modal.classList.remove('hidden');
+// Modals
+function openMyProfile() {
+  document.getElementById('profile-modal').classList.remove('hidden');
+  document.getElementById('modal-username').textContent = currentUser.username;
+  document.getElementById('modal-tag').textContent = currentUser.tag;
+  document.getElementById('modal-role').textContent = currentUser.role;
+  document.getElementById('modal-bio').textContent = currentUser.bio;
+  document.getElementById('modal-pfp').textContent = currentUser.username.charAt(0).toUpperCase();
+  document.getElementById('edit-profile-section').classList.remove('hidden');
+  document.getElementById('edit-tag').value = currentUser.tag;
+  document.getElementById('edit-bio').value = currentUser.bio;
+  document.getElementById('edit-paypal').value = currentUser.paypalEmail || '';
 }
 
-function closePollModal() {
-  const modal = document.getElementById('poll-modal');
-  if (modal) modal.classList.add('hidden');
+function closeProfileModal() {
+  document.getElementById('profile-modal').classList.add('hidden');
 }
 
-function submitPoll() {
-  const qEl = document.getElementById('poll-question');
-  const o1El = document.getElementById('poll-opt1');
-  const o2El = document.getElementById('poll-opt2');
-  
-  if (!qEl || !o1El || !o2El) return;
-  const question = qEl.value.trim();
-  const opt1 = o1El.value.trim();
-  const opt2 = o2El.value.trim();
-
-  if (!question || !opt1 || !opt2) {
-    alert('Please enter a question and at least 2 options.');
-    return;
-  }
-
-  const options = [opt1, opt2];
-  const opt3El = document.getElementById('poll-opt3');
-  const opt3 = opt3El ? opt3El.value.trim() : '';
-  if (opt3) options.push(opt3);
-
-  socket.emit('poll:create', {
-    room: currentRoom,
-    question,
-    options
-  });
-
-  closePollModal();
+function logoutUser() {
+  location.reload();
 }
 
-function fetchAssets() {
-  socket.emit('asset:fetch', (assets) => {
-    const listContainer = document.getElementById('assets-list-container');
-    if (!listContainer || !currentUser) return;
-    listContainer.innerHTML = '';
-    assets.forEach(asset => {
-      const canDeleteAsset = currentUser.username === asset.uploader || currentUser.role.includes('Owner');
-      const deleteAssetBtn = canDeleteAsset ? `<button onclick="deleteAsset(${asset.id})" style="background:none; border:none; color:#ff8888; cursor:pointer; font-size:0.8rem;">🗑️ Delete</button>` : '';
-      
-      const item = document.createElement('div');
-      item.className = 'glass-box';
-      item.style.padding = '10px';
-      item.style.marginBottom = '8px';
-      item.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-weight:bold; font-size:0.85rem;">${asset.name}</div>
-            <div style="font-size:0.7rem; color:var(--text-muted);">Category: ${asset.category} | By @${asset.uploader}</div>
-          </div>
-          <div>
-            <a href="${asset.url}" target="_blank" style="color:var(--accent-light); font-size:0.8rem; margin-right:10px; text-decoration:none;">📥 Download</a>
-            ${deleteAssetBtn}
-          </div>
-        </div>
-      `;
-      listContainer.appendChild(item);
+function openLeaderboardModal() {
+  document.getElementById('leaderboard-modal').classList.remove('hidden');
+  socket.emit('leaderboard:fetch', (list) => {
+    const ul = document.getElementById('leaderboard-list');
+    ul.innerHTML = '';
+    list.forEach((u, i) => {
+      const li = document.createElement('li');
+      li.textContent = `#${i+1} @${u.username} (${u.selectedApp}) - ${u.score} pts [${u.level}]`;
+      ul.appendChild(li);
     });
   });
 }
 
-function deleteAsset(assetId) {
-  if (confirm('Are you sure you want to delete this asset?')) {
-    socket.emit('asset:delete', { assetId });
+function closeLeaderboardModal() {
+  document.getElementById('leaderboard-modal').classList.add('hidden');
+}
+
+function openTriviaModal() {
+  document.getElementById('trivia-modal').classList.remove('hidden');
+  document.getElementById('trivia-app-select').classList.remove('hidden');
+  document.getElementById('trivia-game-box').classList.add('hidden');
+}
+
+function closeTriviaModal() {
+  document.getElementById('trivia-modal').classList.add('hidden');
+}
+
+function openAssetsModal() {
+  document.getElementById('assets-modal').classList.remove('hidden');
+  fetchAssets();
+}
+
+function closeAssetsModal() {
+  document.getElementById('assets-modal').classList.add('hidden');
+}
+
+function openPollModal() {
+  document.getElementById('poll-modal').classList.remove('hidden');
+}
+
+function closePollModal() {
+  document.getElementById('poll-modal').classList.add('hidden');
+}
+
+function openAnalytics() {
+  document.getElementById('analytics-modal').classList.remove('hidden');
+  socket.emit('analytics:fetch', (data) => {
+    document.getElementById('stat-registered').textContent = data.registeredCount;
+    document.getElementById('stat-online').textContent = data.activeOnline;
+    document.getElementById('stat-hours').textContent = data.hoursUsed;
+    document.getElementById('stat-revenue').textContent = data.revenue;
+  });
+}
+
+function closeAnalytics() {
+  document.getElementById('analytics-modal').classList.add('hidden');
+}
+
+function toggleNotifBox() {
+  const box = document.getElementById('notif-box');
+  box.classList.toggle('hidden');
+  if (!box.classList.contains('hidden')) {
+    socket.emit('notifications:fetch', (notifs) => {
+      const list = document.getElementById('notif-list');
+      list.innerHTML = '';
+      notifs.forEach(n => {
+        const li = document.createElement('li');
+        li.textContent = n.text;
+        list.appendChild(li);
+      });
+    });
   }
 }
 
-socket.on('asset:updated', () => {
-  fetchAssets();
-});
-
-socket.on('users:update', (users) => {
-  const list = document.getElementById('online-users-list');
-  if (!list) return;
-  list.innerHTML = '';
-  users.forEach(user => {
-    const li = document.createElement('li');
-    li.style.fontSize = '0.75rem';
-    li.style.padding = '3px 0';
-    li.style.color = 'var(--text-main)';
-    li.textContent = `🟢 @${user.username}`;
-    list.appendChild(li);
-  });
-});
+async function uploadFileToServer(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch('/api/upload', { method: 'POST', body: formData });
+  const data = await res.json();
+  return data.url;
+}
