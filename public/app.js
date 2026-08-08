@@ -189,6 +189,13 @@ socket.on('chat:message', (data) => {
   }
 });
 
+socket.on('poll:new', (poll) => {
+  if (currentRoom === poll.targetRoom) {
+    appendPollMessage(poll);
+    scrollToBottom();
+  }
+});
+
 socket.on('chat:refresh', () => {
   loadChatHistory(currentRoom);
 });
@@ -230,7 +237,13 @@ function openDirectMessage(recipientUsername) {
 function loadChatHistory(room) {
   document.getElementById('messages-container').innerHTML = '';
   socket.emit('chat:fetch_history', { room }, (history) => {
-    history.forEach(msg => appendMessage(msg));
+    history.forEach(item => {
+      if (item.question && item.options) {
+        appendPollMessage(item);
+      } else {
+        appendMessage(item);
+      }
+    });
     scrollToBottom();
   });
 }
@@ -293,6 +306,82 @@ function appendMessage(msg) {
     </div>
   `;
   container.appendChild(div);
+}
+
+function appendPollMessage(poll) {
+  const container = document.getElementById('messages-container');
+  const div = document.createElement('div');
+  
+  const isMe = currentUser && poll.sender.toLowerCase() === currentUser.username.toLowerCase();
+  const isOwner = currentUser && (currentUser.role.includes('Owner') || currentUser.username.toLowerCase() === 'starediter1');
+  const canDelete = isMe || isOwner;
+
+  div.className = 'chat-message';
+  div.style.display = 'flex';
+  div.style.flexDirection = 'column';
+  div.style.alignItems = isMe ? 'flex-end' : 'flex-start';
+  div.style.marginBottom = '12px';
+
+  let optionsHtml = '';
+  poll.options.forEach((opt, idx) => {
+    let votesCount = poll.votes && poll.votes[idx] ? poll.votes[idx].length : 0;
+    optionsHtml += `<button class="footer-btn" style="justify-content: space-between; margin-top: 6px; padding: 8px 12px; font-size: 0.8rem;" onclick="votePoll('${poll.id}', ${idx})"><span>${opt}</span> <strong style="color: var(--accent-light);">${votesCount} votes</strong></button>`;
+  });
+
+  let actionButtons = `<div style="display: flex; gap: 10px; font-size: 0.65rem; margin-top: 8px; opacity: 0.8;">`;
+  if (canDelete) {
+    actionButtons += `<span style="cursor: pointer; color: #ff8888;" onclick="deletePoll('${poll.id}')">Delete Poll 🗑️</span>`;
+  }
+  actionButtons += `</div>`;
+
+  div.innerHTML = `
+    <div style="max-width: 80%; width: 300px; background: rgba(25, 24, 39, 0.95); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px;">
+      <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px;">📊 Poll by <strong style="color: var(--text-main);">${poll.sender}</strong></div>
+      <div style="font-weight: bold; font-size: 0.9rem; margin-bottom: 8px; color: var(--text-main);">${poll.question}</div>
+      ${optionsHtml}
+      ${actionButtons}
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function votePoll(pollId, optionIndex) {
+  socket.emit('poll:vote', { pollId, optionIndex, room: currentRoom });
+}
+
+function deletePoll(pollId) {
+  socket.emit('poll:delete', { pollId, room: currentRoom });
+}
+
+function publishPoll() {
+  const questionInput = document.getElementById('poll-question');
+  const opt1Input = document.getElementById('poll-opt1');
+  const opt2Input = document.getElementById('poll-opt2');
+  const opt3Input = document.getElementById('poll-opt3');
+
+  const question = questionInput.value.trim();
+  const options = [
+    opt1Input.value.trim(),
+    opt2Input.value.trim(),
+    opt3Input.value ? opt3Input.value.trim() : null
+  ].filter(Boolean);
+
+  if (!question || options.length < 2) {
+    alert('Please enter a question and at least 2 options.');
+    return;
+  }
+
+  socket.emit('poll:create', {
+    targetRoom: currentRoom,
+    question,
+    options
+  });
+
+  questionInput.value = '';
+  opt1Input.value = '';
+  opt2Input.value = '';
+  opt3Input.value = '';
+  closePollModal();
 }
 
 function sendSticker(stickerEmoji) {
@@ -520,8 +609,6 @@ function processPayment(type) {
     const receiver = res.paypalEmail || 'starediter1@gmail.com';
     const customData = JSON.stringify({ username: currentUser ? currentUser.username : 'guest' });
     const url = `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=${encodeURIComponent(receiver)}&item_name=${encodeURIComponent(itemName)}&amount=${amt}&currency_code=USD&custom=${encodeURIComponent(customData)}`;
-    
-    // Direct navigation for mobile compatibility
     window.location.href = url;
   });
 }
@@ -552,7 +639,6 @@ socket.on('auth:success', (user) => {
     document.getElementById('my-avatar').innerHTML = `<img src="${user.pfp}" style="width:100%; height:100%; object-fit:cover;">`;
   }
   if (user.username.toLowerCase() === 'starediter1') {
-    document.getElementById('btn-create-poll').classList.remove('hidden');
     document.getElementById('btn-analytics').classList.remove('hidden');
     document.getElementById('btn-notif-bell').classList.remove('hidden');
   }

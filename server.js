@@ -199,6 +199,79 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('poll:create', async (data) => {
+    if (!db) return;
+    const user = activeSockets[socket.id];
+    if (!user) return;
+
+    const pollPayload = {
+      id: 'poll-' + Date.now() + '-' + Math.round(Math.random()*1000),
+      sender: user.username,
+      senderLower: user.username.toLowerCase(),
+      question: data.question,
+      options: data.options,
+      votes: data.options.map(() => []),
+      targetRoom: data.targetRoom.toLowerCase(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const chatCol = db.collection('chatHistory');
+    const targetRoom = data.targetRoom.toLowerCase();
+
+    if (targetRoom === 'global' || targetRoom === 'editing-comp') {
+      await chatCol.updateOne({ room: targetRoom }, { $push: { messages: pollPayload } }, { upsert: true });
+      io.emit('poll:new', pollPayload);
+    }
+  });
+
+  socket.on('poll:vote', async ({ pollId, optionIndex, room }) => {
+    if (!db) return;
+    const user = activeSockets[socket.id];
+    if (!user) return;
+    const cleanRoom = room.toLowerCase();
+
+    const chatCol = db.collection('chatHistory');
+    const doc = await chatCol.findOne({ room: cleanRoom });
+    if (!doc || !doc.messages) return;
+
+    const poll = doc.messages.find(m => m.id === pollId);
+    if (!poll) return;
+
+    poll.votes.forEach(voteList => {
+      const index = voteList.indexOf(user.username);
+      if (index > -1) voteList.splice(index, 1);
+    });
+
+    if (poll.votes[optionIndex]) {
+      poll.votes[optionIndex].push(user.username);
+    }
+
+    await chatCol.updateOne({ room: cleanRoom, "messages.id": pollId }, { $set: { "messages.$": poll } });
+    io.emit('chat:refresh', { room: cleanRoom });
+  });
+
+  socket.on('poll:delete', async ({ pollId, room }) => {
+    if (!db) return;
+    const user = activeSockets[socket.id];
+    if (!user) return;
+
+    const isOwnerUser = user.isOwner || user.username.toLowerCase() === OWNER_USERNAME;
+    const cleanRoom = room.toLowerCase();
+    const chatCol = db.collection('chatHistory');
+
+    const doc = await chatCol.findOne({ room: cleanRoom });
+    if (!doc || !doc.messages) return;
+
+    const poll = doc.messages.find(m => m.id === pollId);
+    if (!poll) return;
+
+    const isAuthor = poll.senderLower === user.username.toLowerCase();
+    if (isAuthor || isOwnerUser) {
+      await chatCol.updateOne({ room: cleanRoom }, { $pull: { messages: { id: pollId } } });
+      io.emit('chat:refresh', { room: cleanRoom });
+    }
+  });
+
   socket.on('dms:fetch_list', async (callback) => {
     if (!db) return callback([]);
     const usersCol = db.collection('users');
@@ -269,7 +342,7 @@ io.on('connection', (socket) => {
     callback({ paypalEmail: owner ? owner.paypalEmail : 'starediter1@gmail.com' });
   });
 
-    socket.on('disconnect', () => {
+  socket.on('disconnect', () => {
     delete activeSockets[socket.id];
     io.emit('users:update', Object.values(activeSockets));
     console.log('Client disconnected:', socket.id);
