@@ -195,16 +195,20 @@
 
   <!-- TRIVIA MODAL -->
   <div id="trivia-modal" class="hidden modal-overlay">
-    <div class="modal-card" style="width: 360px; text-align: center;">
+    <div class="modal-card" style="width: 380px;">
       <span style="position: absolute; top: 15px; right: 18px; cursor: pointer; color: var(--text-muted);" onclick="closeTriviaModal()">✕</span>
-      <h3>🎮 Video Editing Trivia</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin: 15px 0;">Test your video editing software knowledge!</p>
-      <div id="trivia-question-box">
-        <p style="font-weight: 600; margin-bottom: 14px; font-size: 0.9rem;">Which editing app is well known for keyframe graphing and velocity edits?</p>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <button class="footer-btn" onclick="alert('Correct! +10 points')">After Effects</button>
-          <button class="footer-btn" onclick="alert('Incorrect!')">Notepad</button>
-        </div>
+      <h3 style="margin-bottom: 15px;">🎮 Editor Trivia Arcade</h3>
+      <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Select Your Editing Suite</label>
+      <select id="trivia-suite-select" class="auth-input" style="margin-bottom: 16px;">
+        <option value="After Effects">After Effects</option>
+        <option value="CapCut">CapCut</option>
+        <option value="Alight Motion">Alight Motion</option>
+        <option value="Blur">Blur</option>
+        <option value="Video Star">Video Star</option>
+      </select>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="footer-btn" style="background: var(--accent);" onclick="startTriviaSession()">Start Trivia Session</button>
+        <button class="footer-btn" style="background: var(--bg-card);" onclick="closeTriviaModal()">Exit Arcade</button>
       </div>
     </div>
   </div>
@@ -218,24 +222,31 @@
         <li>Registered Users: <strong id="stat-registered">0</strong></li>
         <li>Active Online: <strong id="stat-online">0</strong></li>
         <li>Server Uptime: <strong id="stat-hours">0</strong> hrs</li>
-        <li>Total Revenue: <strong id="stat-revenue">$0</strong></li>
+        <li>Total Revenue: <strong id="stat-revenue">$0.00</strong></li>
       </ul>
     </div>
   </div>
 
   <!-- POLL MODAL -->
   <div id="poll-modal" class="hidden modal-overlay">
-    <div class="modal-card" style="width: 320px;">
+    <div class="modal-card" style="width: 380px;">
       <span style="position: absolute; top: 15px; right: 18px; cursor: pointer; color: var(--text-muted);" onclick="closePollModal()">✕</span>
-      <h3>📊 Create Community Poll</h3>
-      <input type="text" class="auth-input" placeholder="Ask a question..." style="margin: 15px 0 12px 0;">
-      <button class="footer-btn" style="background: var(--accent);" onclick="closePollModal(); alert('Poll published!');">Publish Poll</button>
+      <h3 style="margin-bottom: 15px;">📊 Create Community Poll</h3>
+      <input type="text" class="auth-input" placeholder="Ask a question..." style="margin-bottom: 10px;">
+      <input type="text" class="auth-input" placeholder="Option 1" style="margin-bottom: 10px;">
+      <input type="text" class="auth-input" placeholder="Option 2" style="margin-bottom: 10px;">
+      <input type="text" class="auth-input" placeholder="Option 3 (Optional)" style="margin-bottom: 16px;">
+      <div style="display: flex; gap: 10px;">
+        <button class="footer-btn" style="background: var(--accent); flex: 1;" onclick="closePollModal(); alert('Poll published!');">Publish Poll</button>
+        <button class="footer-btn" style="background: var(--bg-card); flex: 1;" onclick="closePollModal()">Cancel</button>
+      </div>
     </div>
   </div>
 
+  <!-- NOTIFICATION BOX -->
   <div id="notif-box" class="hidden" style="position: fixed; top: 70px; right: 20px; background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; width: 260px; z-index: 2000; font-size: 0.8rem; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
     <strong>🔔 Notifications</strong>
-    <p style="color: var(--text-muted); margin-top: 6px;">New PayPal payment received ($3.00) for Personal Edit!</p>
+    <p id="notif-text" style="color: var(--text-muted); margin-top: 6px;">No new notifications.</p>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

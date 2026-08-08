@@ -1,4 +1,3 @@
-// Global state variables
 let socket = io();
 let currentRoom = 'global';
 let currentUser = null;
@@ -15,6 +14,26 @@ socket.on('connect', () => {
     } catch (e) {
       localStorage.removeItem('star_fam_user');
     }
+  }
+});
+
+socket.on('leaderboard:update', (list) => {
+  const listEl = document.getElementById('leaderboard-list');
+  if (!listEl) return;
+  let html = '';
+  list.forEach((u, i) => {
+    html += `<li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom: 1px solid var(--border-color);"><span>#${i+1} ${u.username}</span> <strong style="color: var(--accent-light);">${u.score} pts</strong></li>`;
+  });
+  listEl.innerHTML = html;
+});
+
+socket.on('notification:new', (notif) => {
+  const notifBox = document.getElementById('notif-box');
+  const notifText = document.getElementById('notif-text');
+  if (notifBox && notifText) {
+    notifText.innerText = notif.message;
+    notifBox.classList.remove('hidden');
+    setTimeout(() => notifBox.classList.add('hidden'), 6000);
   }
 });
 
@@ -84,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Inject Sticker Drawer HTML into DOM if not present
   if (!document.getElementById('sticker-drawer')) {
     const drawer = document.createElement('div');
     drawer.id = 'sticker-drawer';
@@ -226,7 +244,6 @@ function appendMessage(msg) {
     `<img src="${msg.pfp}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 6px;">` : 
     `<span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); text-align: center; line-height: 22px; font-size: 0.65rem; color: #fff; margin-right: 6px;">${msg.sender.charAt(0).toUpperCase()}</span>`;
 
-  // Action bar with Reply beside Forward
   let actionButtons = `<div style="display: flex; gap: 10px; font-size: 0.65rem; margin-top: 4px; opacity: 0.8;">`;
   actionButtons += `<span style="cursor: pointer; color: var(--text-muted);" onclick="forwardMessage('${encodeURIComponent(msg.text || '')}')">Forward ↗</span>`;
   if (!msg.isSticker) {
@@ -258,6 +275,14 @@ function sendSticker(stickerEmoji) {
   });
   const drawer = document.getElementById('sticker-drawer');
   if (drawer) drawer.classList.add('hidden');
+}
+
+function startTriviaSession() {
+  const suite = document.getElementById('trivia-suite-select').value;
+  socket.emit('trivia:submit', { points: 15 }, () => {
+    alert(`Trivia session for ${suite} completed! +15 points added.`);
+    closeTriviaModal();
+  });
 }
 
 function replyToMessage(encodedText, sender) {
@@ -368,7 +393,7 @@ function openLeaderboardModal() {
   socket.emit('leaderboard:fetch', (list) => {
     let html = '';
     list.forEach((u, i) => {
-      html += `<li style="display:flex; justify-content:space-between; padding:6px 0;"><span>#${i+1} ${u.username}</span> <span>${u.score} pts</span></li>`;
+      html += `<li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom: 1px solid var(--border-color);"><span>#${i+1} ${u.username}</span> <strong style="color: var(--accent-light);">${u.score} pts</strong></li>`;
     });
     document.getElementById('leaderboard-list').innerHTML = html;
   });
@@ -392,6 +417,9 @@ function toggleMobileView() { document.querySelector('.sidebar').classList.toggl
 function processPayment(type) {
   let amt = type === 'donate' ? (document.getElementById('donate-amount').value || '5') : '3.00';
   let itemName = type === 'donate' ? 'Creator Donation' : 'Personal Edit';
+  
+  socket.emit('payment:completed', { amount: amt, type: itemName });
+
   socket.emit('owner:paypal:fetch', (res) => {
     const receiver = res.paypalEmail || 'starediter1@gmail.com';
     const customData = JSON.stringify({ username: currentUser.username });

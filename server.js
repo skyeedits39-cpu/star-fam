@@ -221,6 +221,23 @@ io.on('connection', (socket) => {
     callback();
   });
 
+  socket.on('trivia:submit', async ({ points }, callback) => {
+    if (!db) return;
+    const user = activeSockets[socket.id];
+    if (!user) return;
+    const triviaCol = db.collection('triviaScores');
+    
+    await triviaCol.updateOne(
+      { username: user.username },
+      { $inc: { score: points }, $set: { tag: user.tag } },
+      { upsert: true }
+    );
+
+    const list = await triviaCol.find({}).sort({ score: -1 }).limit(10).toArray();
+    io.emit('leaderboard:update', list);
+    callback({ success: true });
+  });
+
   socket.on('leaderboard:fetch', async (callback) => {
     if (!db) return callback([]);
     const triviaCol = db.collection('triviaScores');
@@ -228,15 +245,31 @@ io.on('connection', (socket) => {
     callback(list);
   });
 
+  socket.on('payment:completed', async ({ amount, type }) => {
+    if (!db) return;
+    const revCol = db.collection('revenueLogs');
+    await revCol.insertOne({ amount: parseFloat(amount), type, timestamp: new Date() });
+
+    io.emit('notification:new', {
+      title: 'New Payment Received!',
+      message: `Received $${parseFloat(amount).toFixed(2)} for ${type}!`
+    });
+  });
+
   socket.on('analytics:fetch', async (callback) => {
     if (!db) return callback({});
     const usersCol = db.collection('users');
+    const revCol = db.collection('revenueLogs');
     const count = await usersCol.countDocuments();
+    
+    const revDocs = await revCol.find({}).toArray();
+    const totalRev = revDocs.reduce((acc, curr) => acc + curr.amount, 0);
+
     callback({
       registeredCount: count,
       activeOnline: Object.keys(activeSockets).length,
       hoursUsed: (process.uptime() / 3600).toFixed(2),
-      revenue: '$15.00'
+      revenue: `$${totalRev.toFixed(2)}`
     });
   });
 
