@@ -17,7 +17,7 @@ const io = new Server(server, {
 const uploadDir = path.join(__dirname, 'public/uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-const mongoUrl = 'mongodb+srv://skyeedits39_db_user:Dfuv8vFhU0BkwSID@cluster0.ldbytls.mongodb.net/?appName=Cluster0';
+const mongoUrl = 'mongodb+srv://skyeadmin:StarEdit2026@cluster0.ldbytls.mongodb.net/?appName=Cluster0';
 const dbName = 'star_fam_db';
 
 let db = null;
