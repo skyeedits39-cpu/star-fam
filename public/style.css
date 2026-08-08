@@ -1,6 +1,6 @@
 :root {
   --bg-color: #0d0614;
-  --panel-bg: rgba(25, 15, 35, 0.92);
+  --panel-bg: rgba(25, 15, 35, 0.95);
   --accent: #9333ea;
   --accent-light: #c084fc;
   --text-main: #f3f4f6;
@@ -18,10 +18,9 @@
 body {
   background-color: var(--bg-color);
   color: var(--text-main);
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  position: fixed;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .hidden {
@@ -120,39 +119,35 @@ body {
 .app-container {
   display: flex;
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   padding: 10px;
   gap: 10px;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 @media (max-width: 768px) {
   .app-container {
-    overflow-x: auto;
+    flex-direction: column;
+    height: auto;
     overflow-y: auto;
-    scroll-snap-type: x mandatory;
+    overflow-x: hidden;
     padding: 6px;
-    gap: 6px;
+    gap: 10px;
     -webkit-overflow-scrolling: touch;
   }
   .sidebar {
-    min-width: 100vw;
-    width: 100vw;
-    height: 100%;
-    scroll-snap-align: start;
-    border-radius: 0;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
     flex-shrink: 0;
   }
   .chat-main {
-    min-width: 100vw;
-    width: 100vw;
-    height: 100%;
-    scroll-snap-align: start;
-    border-radius: 0;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    overflow-y: visible !important;
     flex-shrink: 0;
   }
 }
@@ -229,10 +224,10 @@ body {
 }
 
 .sidebar-footer {
-  margin-top: auto;
+  margin-top: 15px;
   border-top: 1px solid var(--border-color);
   padding-top: 12px;
-  padding-bottom: 20px;
+  padding-bottom: 10px;
 }
 
 .chat-main {
@@ -256,7 +251,7 @@ body {
 .messages-container {
   flex: 1;
   min-height: 250px;
-  max-height: 60vh;
+  max-height: 50vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 15px 0;
@@ -286,9 +281,9 @@ body {
   display: flex;
   gap: 10px;
   padding-top: 10px;
-  padding-bottom: env(safe-area-inset-bottom, 20px);
+  padding-bottom: 15px;
   border-top: 1px solid var(--border-color);
-  margin-top: auto;
+  margin-top: 15px;
   flex-shrink: 0;
 }
 

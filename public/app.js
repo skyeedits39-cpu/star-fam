@@ -138,11 +138,6 @@ function switchRoom(room) {
     document.getElementById('btn-create-poll').classList.add('hidden');
     loadRoomContent();
   }
-
-  const appContainer = document.querySelector('.app-container');
-  if (window.innerWidth <= 768 && appContainer) {
-    appContainer.scrollTo({ left: appContainer.clientWidth, behavior: 'smooth' });
-  }
 }
 
 function loadRoomContent() {
