@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, { 
-  maxHttpBufferSize: 500 * 1024 * 1024 * 1024 // 500GB max buffer for massive video edits
+  maxHttpBufferSize: 500 * 1024 * 1024 * 1024 
 });
 
 const uploadDir = path.join(__dirname, 'public/uploads');
@@ -129,11 +129,12 @@ app.post('/paypal/ipn', (req, res) => {
           const notifText = `💰 @${username} automatically purchased "${itemName}" ($${amount} USD)!`;
           db.notifications.unshift({ id: Date.now(), text: notifText, timestamp: new Date().toLocaleTimeString() });
 
-          const threadKey = [username.toLowerCase(), OWNER_USERNAME].sort().join('_');
+          const cleanUserLower = username.toLowerCase();
+          const threadKey = [cleanUserLower, OWNER_USERNAME].sort().join('_');
           const autoMsg = {
             id: 'msg-' + Date.now(),
             sender: username, tag: '@' + username, role: 'Editor', pfp: null,
-            targetRoom: `dm-${username}`, text: `Hi! I successfully completed payment for "${itemName}" ($${amount}). Ready to get started!`,
+            targetRoom: `dm-${cleanUserLower}`, text: `Hi! I successfully completed payment for "${itemName}" ($${amount}). Ready to get started!`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
           if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
@@ -142,8 +143,8 @@ app.post('/paypal/ipn', (req, res) => {
 
           io.sockets.sockets.forEach(s => {
             const client = activeSockets[s.id];
-            if (client && (client.username.toLowerCase() === OWNER_USERNAME || client.username.toLowerCase() === username.toLowerCase())) {
-              s.emit('chat:message', { ...autoMsg, room: `dm-${username}` });
+            if (client && (client.username.toLowerCase() === OWNER_USERNAME || client.username.toLowerCase() === cleanUserLower)) {
+              s.emit('chat:message', { ...autoMsg, room: `dm-${cleanUserLower}`, targetRoom: `dm-${cleanUserLower}` });
             }
           });
         }
@@ -345,29 +346,32 @@ io.on('connection', (socket) => {
   socket.on('chat:send', (data) => {
     const user = activeSockets[socket.id];
     if (!user) return;
+    const cleanSenderLower = user.username.toLowerCase();
+    const targetRoom = data.targetRoom.toLowerCase();
+
     const payload = {
       id: 'msg-' + Date.now() + '-' + Math.round(Math.random()*1000),
       sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
-      targetRoom: data.targetRoom, text: data.text || '', mediaUrl: data.mediaUrl || null, mediaType: data.mediaType || null, replyTo: data.replyTo || null,
+      targetRoom: targetRoom, text: data.text || '', mediaUrl: data.mediaUrl || null, mediaType: data.mediaType || null, replyTo: data.replyTo || null,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    if (data.targetRoom === 'global') {
+    if (targetRoom === 'global') {
       db.chatHistory.global.push(payload);
-      io.emit('chat:message', payload);
-    } else if (data.targetRoom === 'editing-comp') {
+      io.emit('chat:message', { ...payload, room: 'global' });
+    } else if (targetRoom === 'editing-comp') {
       db.chatHistory['editing-comp'].push(payload);
-      io.emit('chat:message', payload);
-    } else if (data.targetRoom.startsWith('dm-')) {
-      const recipient = data.targetRoom.replace('dm-', '');
-      const threadKey = [user.username.toLowerCase(), recipient.toLowerCase()].sort().join('_');
+      io.emit('chat:message', { ...payload, room: 'editing-comp' });
+    } else if (targetRoom.startsWith('dm-')) {
+      const recipientLower = targetRoom.replace('dm-', '');
+      const threadKey = [cleanSenderLower, recipientLower].sort().join('_');
       if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
       db.privateDMs[threadKey].push(payload);
       
       io.sockets.sockets.forEach(s => {
         const client = activeSockets[s.id];
-        if (client && (client.username.toLowerCase() === user.username.toLowerCase() || client.username.toLowerCase() === recipient.toLowerCase())) {
-          s.emit('chat:message', { ...payload, room: data.targetRoom });
+        if (client && (client.username.toLowerCase() === cleanSenderLower || client.username.toLowerCase() === recipientLower)) {
+          s.emit('chat:message', { ...payload, room: targetRoom, targetRoom: targetRoom });
         }
       });
     }
@@ -378,20 +382,21 @@ io.on('connection', (socket) => {
     const user = activeSockets[socket.id];
     if (!user) return;
     const isOwnerUser = user.isOwner || user.username.toLowerCase() === OWNER_USERNAME;
+    const cleanRoom = room.toLowerCase();
 
-    if (room === 'global') {
+    if (cleanRoom === 'global') {
       const idx = db.chatHistory.global.findIndex(m => m.id === msgId);
       if (idx !== -1 && (db.chatHistory.global[idx].sender === user.username || isOwnerUser)) {
         db.chatHistory.global.splice(idx, 1);
         saveDB();
-        io.emit('chat:refresh', { room });
+        io.emit('chat:refresh', { room: cleanRoom });
       }
-    } else if (room === 'editing-comp') {
+    } else if (cleanRoom === 'editing-comp') {
       const idx = db.chatHistory['editing-comp'].findIndex(m => m.id === msgId);
       if (idx !== -1 && (db.chatHistory['editing-comp'][idx].sender === user.username || isOwnerUser)) {
         db.chatHistory['editing-comp'].splice(idx, 1);
         saveDB();
-        io.emit('chat:refresh', { room });
+        io.emit('chat:refresh', { room: cleanRoom });
       }
     } else {
       Object.keys(db.privateDMs).forEach(threadKey => {
@@ -400,7 +405,7 @@ io.on('connection', (socket) => {
         if (idx !== -1 && (list[idx].sender === user.username || isOwnerUser)) {
           list.splice(idx, 1);
           saveDB();
-          io.emit('chat:refresh', { room });
+          io.emit('chat:refresh', { room: cleanRoom });
         }
       });
     }
@@ -410,13 +415,14 @@ io.on('connection', (socket) => {
     const user = activeSockets[socket.id];
     if (!user) return;
     if (!Array.isArray(db.polls)) db.polls = [];
+    const cleanRoom = room.toLowerCase();
     const poll = {
-      id: 'poll-' + Date.now(), room, question,
+      id: 'poll-' + Date.now(), room: cleanRoom, question,
       creator: user.username, options: options.map(opt => ({ text: opt, votes: [] }))
     };
     db.polls.push(poll);
     saveDB();
-    io.emit('poll:updated', { room });
+    io.emit('poll:updated', { room: cleanRoom });
   });
 
   socket.on('poll:vote', ({ pollId, optionIdx }) => {
@@ -450,18 +456,21 @@ io.on('connection', (socket) => {
 
   socket.on('poll:fetch', (room, callback) => {
     if (!Array.isArray(db.polls)) db.polls = [];
-    const active = db.polls.filter(p => p.room === room);
+    const cleanRoom = room.toLowerCase();
+    const active = db.polls.filter(p => p.room === cleanRoom);
     if (typeof callback === 'function') callback(active);
   });
 
   socket.on('chat:fetch_history', ({ room }, callback) => {
     const user = activeSockets[socket.id];
     if (!user || typeof callback !== 'function') return;
-    if (room === 'global') callback(db.chatHistory.global || []);
-    else if (room === 'editing-comp') callback(db.chatHistory['editing-comp'] || []);
-    else if (room.startsWith('dm-')) {
-      const recipient = room.replace('dm-', '');
-      const threadKey = [user.username.toLowerCase(), recipient.toLowerCase()].sort().join('_');
+    const cleanRoom = room.toLowerCase();
+
+    if (cleanRoom === 'global') callback(db.chatHistory.global || []);
+    else if (cleanRoom === 'editing-comp') callback(db.chatHistory['editing-comp'] || []);
+    else if (cleanRoom.startsWith('dm-')) {
+      const recipientLower = cleanRoom.replace('dm-', '');
+      const threadKey = [user.username.toLowerCase(), recipientLower].sort().join('_');
       callback(db.privateDMs[threadKey] || []);
     }
   });
@@ -469,23 +478,30 @@ io.on('connection', (socket) => {
   socket.on('dms:fetch_list', (callback) => {
     const user = activeSockets[socket.id];
     if (!user || typeof callback !== 'function') return;
-    const dms = new Set();
+    const userLower = user.username.toLowerCase();
+    const uniqueMap = new Map();
 
     Object.keys(db.privateDMs).forEach(key => {
-      if (key.includes(user.username.toLowerCase())) {
+      if (key.includes(userLower)) {
         const parts = key.split('_');
-        const other = parts[0] === user.username.toLowerCase() ? parts[1] : parts[0];
-        if (other) dms.add(other);
+        const otherLower = parts[0] === userLower ? parts[1] : parts[0];
+        if (otherLower && otherLower !== userLower) {
+          const regKey = Object.keys(db.registeredUsers).find(k => k.toLowerCase() === otherLower);
+          const originalName = regKey ? db.registeredUsers[regKey].username : otherLower;
+          uniqueMap.set(otherLower, originalName);
+        }
       }
     });
 
     Object.keys(db.registeredUsers).forEach(uKey => {
-      if (uKey !== user.username.toLowerCase()) {
-        dms.add(db.registeredUsers[uKey].username);
+      if (uKey !== userLower) {
+        const originalName = db.registeredUsers[uKey].username;
+        uniqueMap.set(uKey, originalName);
       }
     });
 
-    callback(Array.from(dms).map(username => ({ username })));
+    const dmsList = Array.from(uniqueMap.values()).map(username => ({ username }));
+    callback(dmsList);
   });
 
   socket.on('analytics:fetch', (callback) => {

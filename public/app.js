@@ -104,7 +104,6 @@ socket.on('auth:success', (user) => {
   loadDMsList();
 });
 
-// Auto-login session recovery on load
 window.addEventListener('DOMContentLoaded', () => {
   const savedUser = localStorage.getItem('star_fam_user');
   if (savedUser) {
@@ -116,31 +115,31 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function switchRoom(room) {
-  currentRoom = room;
+  currentRoom = room.toLowerCase();
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('#user-list li').forEach(li => li.style.background = 'transparent');
   
   document.getElementById('support-section-view').classList.add('hidden');
   document.getElementById('chat-active-area').classList.remove('hidden');
 
-  if (room === 'global') {
+  if (currentRoom === 'global') {
     document.getElementById('btn-global').classList.add('active');
     document.getElementById('room-title').textContent = '🌐 Community Lounge';
     document.getElementById('room-desc').textContent = 'Public lounge for presets, edits & polls';
     document.getElementById('btn-create-poll').classList.remove('hidden');
     loadRoomContent();
-  } else if (room === 'editing-comp') {
+  } else if (currentRoom === 'editing-comp') {
     document.getElementById('btn-comp').classList.add('active');
     document.getElementById('room-title').textContent = '🏆 Editing Comp';
     document.getElementById('room-desc').textContent = 'Official Editing Competition channel!';
     document.getElementById('btn-create-poll').classList.remove('hidden');
     loadRoomContent();
-  } else if (room === 'support-hub') {
+  } else if (currentRoom === 'support-hub') {
     document.getElementById('btn-support').classList.add('active');
     document.getElementById('chat-active-area').classList.add('hidden');
     document.getElementById('support-section-view').classList.remove('hidden');
-  } else if (room.startsWith('dm-')) {
-    const targetUser = room.replace('dm-', '');
+  } else if (currentRoom.startsWith('dm-')) {
+    const targetUser = currentRoom.replace('dm-', '');
     document.getElementById('room-title').textContent = `💬 Direct Chat with @${targetUser}`;
     document.getElementById('room-desc').textContent = `Private messaging with @${targetUser}`;
     document.getElementById('btn-create-poll').classList.add('hidden');
@@ -191,18 +190,24 @@ function loadDMsList() {
       return;
     }
 
+    const seenNames = new Set();
+
     dms.forEach(dm => {
-      if (dm.username.toLowerCase() === currentUser.username.toLowerCase()) return;
+      const lowerName = dm.username.toLowerCase();
+      if (lowerName === currentUser.username.toLowerCase() || seenNames.has(lowerName)) return;
+      seenNames.add(lowerName);
+
+      const targetDmRoom = `dm-${lowerName}`;
       const li = document.createElement('li');
       li.style.fontSize = '0.8rem';
       li.style.padding = '6px 8px';
       li.style.borderRadius = '6px';
       li.style.cursor = 'pointer';
       li.style.margin = '2px 0';
-      li.style.color = currentRoom === `dm-${dm.username}` ? 'var(--accent-light)' : 'var(--text-main)';
-      li.style.background = currentRoom === `dm-${dm.username}` ? 'rgba(147, 51, 234, 0.25)' : 'transparent';
+      li.style.color = currentRoom === targetDmRoom ? 'var(--accent-light)' : 'var(--text-main)';
+      li.style.background = currentRoom === targetDmRoom ? 'rgba(147, 51, 234, 0.25)' : 'transparent';
       li.innerHTML = `🟢 @${dm.username}`;
-      li.onclick = () => switchRoom(`dm-${dm.username}`);
+      li.onclick = () => switchRoom(targetDmRoom);
       userList.appendChild(li);
     });
   });
@@ -249,8 +254,8 @@ function handleKeyPress(e) {
 }
 
 socket.on('chat:message', (msg) => {
-  const targetMatch = msg.targetRoom === currentRoom || msg.room === currentRoom;
-  if (targetMatch) {
+  const msgRoom = (msg.targetRoom || msg.room || '').toLowerCase();
+  if (msgRoom === currentRoom) {
     renderMessage(msg);
   }
   loadDMsList();
@@ -280,7 +285,7 @@ function renderMessage(msg) {
   if (!container || !currentUser) return;
   
   const div = document.createElement('div');
-  div.className = `message-row ${msg.sender === currentUser.username ? 'my-msg' : ''}`;
+  div.className = `message-row ${msg.sender.toLowerCase() === currentUser.username.toLowerCase() ? 'my-msg' : ''}`;
 
   if (msg.type === 'poll') {
     let optionsHtml = '';
@@ -301,7 +306,7 @@ function renderMessage(msg) {
       `;
     });
 
-    const canDeletePoll = currentUser.username === msg.sender || currentUser.role.includes('Owner') || currentUser.username.toLowerCase() === 'starediter1';
+    const canDeletePoll = currentUser.username.toLowerCase() === msg.sender.toLowerCase() || currentUser.role.includes('Owner') || currentUser.username.toLowerCase() === 'starediter1';
     const deleteBtn = canDeletePoll ? `<button onclick="deletePoll('${msg.id}')" style="background:none; border:none; color:#ff8888; font-size:0.7rem; cursor:pointer; float:right;">🗑️ Delete</button>` : '';
 
     div.innerHTML = `
@@ -315,7 +320,7 @@ function renderMessage(msg) {
     `;
   } else {
     const isOwnerUser = currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner');
-    const canDelete = currentUser.username === msg.sender || isOwnerUser;
+    const canDelete = currentUser.username.toLowerCase() === msg.sender.toLowerCase() || isOwnerUser;
     const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" title="Delete message" style="background:none; border:none; color:#ff8888; cursor:pointer; font-size:0.75rem; padding:0 4px; vertical-align:middle;">🗑️</button>` : '';
     const replyBtn = `<button onclick="setReplyTo('${msg.id}', '${msg.sender}', \`${(msg.text || '').replace(/`/g, '')}\`)" title="Reply" style="background:none; border:none; color:var(--accent-light); cursor:pointer; font-size:0.75rem; padding:0 4px; vertical-align:middle;">↩️</button>`;
 
