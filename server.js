@@ -1,4 +1,137 @@
-socket.on('chat:send', async (data) => {
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const { MongoClient } = require('mongodb');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+const PORT = process.env.PORT || 3000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
+const DB_NAME = 'star_fam';
+const OWNER_USERNAME = 'starediter1';
+
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+const uploadDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage });
+
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  res.json({
+    url: `/uploads/${req.file.filename}`,
+    originalName: req.file.originalname,
+    size: (req.file.size / (1024 * 1024)).toFixed(2) + ' MB'
+  });
+});
+
+let db;
+MongoClient.connect(MONGO_URI)
+  .then(client => {
+    db = client.db(DB_NAME);
+    console.log('Connected to MongoDB database');
+  })
+  .catch(err => console.error('MongoDB connection error:', err));
+
+const activeSockets = {};
+
+io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+
+  socket.on('auth:login', async ({ identifier, pin }, callback) => {
+    if (!db) return callback({ success: false, message: 'Database connecting...' });
+    const usersCol = db.collection('users');
+    const user = await usersCol.findOne({
+      $or: [{ username: new RegExp(`^${identifier}$`, 'i') }, { tag: new RegExp(`^${identifier}$`, 'i') }]
+    });
+
+    if (!user || user.pin !== pin) {
+      return callback({ success: false, message: 'Invalid credentials or PIN.' });
+    }
+
+    activeSockets[socket.id] = user;
+    socket.join('global');
+    io.emit('users:update', Object.values(activeSockets));
+    callback({ success: true });
+    socket.emit('auth:success', user);
+  });
+
+  socket.on('auth:signup', async ({ username, pin, tag, bio, pfp }, callback) => {
+    if (!db) return callback({ success: false, message: 'Database connecting...' });
+    const usersCol = db.collection('users');
+    const existing = await usersCol.findOne({ username: new RegExp(`^${username}$`, 'i') });
+    if (existing) {
+      return callback({ success: false, message: 'Username is already taken.' });
+    }
+
+    const isOwner = username.toLowerCase() === OWNER_USERNAME;
+    const newUser = {
+      username,
+      pin,
+      tag: tag || `@${username}`,
+      bio: bio || 'VFX Motion Editor',
+      role: isOwner ? '👑 Owner & Creator' : 'Editor',
+      pfp: pfp || null,
+      isOwner
+    };
+
+    await usersCol.insertOne(newUser);
+    activeSockets[socket.id] = newUser;
+    socket.join('global');
+    io.emit('users:update', Object.values(activeSockets));
+    callback({ success: true });
+    socket.emit('auth:success', newUser);
+  });
+
+  socket.on('auth:recover', async ({ identifier, recoveryCode, newPin }, callback) => {
+    if (recoveryCode !== '1111') {
+      return callback({ success: false, message: 'Invalid recovery code. Enter 1111.' });
+    }
+    const usersCol = db.collection('users');
+    const user = await usersCol.findOne({
+      $or: [{ username: new RegExp(`^${identifier}$`, 'i') }, { tag: new RegExp(`^${identifier}$`, 'i') }]
+    });
+    if (!user) {
+      return callback({ success: false, message: 'User not found.' });
+    }
+    await usersCol.updateOne({ _id: user._id }, { $set: { pin: newPin } });
+    callback({ success: true, message: 'PIN successfully reset! Please log in.' });
+  });
+
+  socket.on('chat:fetch_history', async ({ room }, callback) => {
+    if (!db) return callback([]);
+    const cleanRoom = room.toLowerCase();
+    if (cleanRoom === 'global' || cleanRoom === 'editing-comp') {
+      const chatCol = db.collection('chatHistory');
+      const doc = await chatCol.findOne({ room: cleanRoom });
+      callback(doc ? doc.messages : []);
+    } else if (cleanRoom.startsWith('dm-')) {
+      const user = activeSockets[socket.id];
+      if (!user) return callback([]);
+      const recipientLower = cleanRoom.replace('dm-', '');
+      const threadKey = [user.username.toLowerCase(), recipientLower].sort().join('_');
+      const dmsCol = db.collection('privateDMs');
+      const doc = await dmsCol.findOne({ threadKey });
+      callback(doc ? doc.messages : []);
+    } else {
+      callback([]);
+    }
+  });
+
+  socket.on('chat:send', async (data) => {
     if (!db) return;
     const user = activeSockets[socket.id];
     if (!user) return;
@@ -64,3 +197,62 @@ socket.on('chat:send', async (data) => {
       }
     }
   });
+
+  socket.on('dms:fetch_list', async (callback) => {
+    if (!db) return callback([]);
+    const usersCol = db.collection('users');
+    const users = await usersCol.find({}, { projection: { username: 1, tag: 1, pfp: 1 } }).toArray();
+    callback(users);
+  });
+
+  socket.on('profile:update', async (data, callback) => {
+    if (!db) return;
+    const user = activeSockets[socket.id];
+    if (!user) return;
+    const usersCol = db.collection('users');
+    const updateFields = { tag: data.tag, bio: data.bio };
+    if (data.pfp !== undefined) updateFields.pfp = data.pfp;
+    if (data.paypalEmail && user.username.toLowerCase() === OWNER_USERNAME) {
+      updateFields.paypalEmail = data.paypalEmail;
+    }
+    await usersCol.updateOne({ username: user.username }, { $set: updateFields });
+    Object.assign(user, updateFields);
+    callback();
+  });
+
+  socket.on('leaderboard:fetch', async (callback) => {
+    if (!db) return callback([]);
+    const triviaCol = db.collection('triviaScores');
+    const list = await triviaCol.find({}).sort({ score: -1 }).limit(10).toArray();
+    callback(list);
+  });
+
+  socket.on('analytics:fetch', async (callback) => {
+    if (!db) return callback({});
+    const usersCol = db.collection('users');
+    const count = await usersCol.countDocuments();
+    callback({
+      registeredCount: count,
+      activeOnline: Object.keys(activeSockets).length,
+      hoursUsed: (process.uptime() / 3600).toFixed(2),
+      revenue: '$15.00'
+    });
+  });
+
+  socket.on('owner:paypal:fetch', async (callback) => {
+    if (!db) return callback({});
+    const usersCol = db.collection('users');
+    const owner = await usersCol.findOne({ username: OWNER_USERNAME });
+    callback({ paypalEmail: owner ? owner.paypalEmail : 'starediter1@gmail.com' });
+  });
+
+  socket.on('disconnect', () => {
+    delete activeSockets[socket.id];
+    io.emit('users:update', Object.values(activeSockets));
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
