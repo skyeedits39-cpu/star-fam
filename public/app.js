@@ -45,7 +45,7 @@ if (loginFormEl) {
     const pin = document.getElementById('login-pin').value.trim();
 
     socket.emit('auth:login', { identifier, pin }, (res) => {
-      if (!res.success) {
+      if (res && !res.success) {
         alert(res.message);
       }
     });
@@ -69,21 +69,20 @@ if (signupFormEl) {
     }
 
     socket.emit('auth:signup', { username, pin, tag, bio, pfp }, (res) => {
-      if (!res.success) {
+      if (res && !res.success) {
         alert(res.message);
       }
     });
   });
 }
 
-// AUTH SUCCESS: Hides login overlay and reveals main app
+// AUTH SUCCESS
 socket.on('auth:success', (user) => {
   currentUser = user;
 
   if (authOverlay) authOverlay.classList.add('hidden');
   if (mainAppContainer) mainAppContainer.classList.remove('hidden');
 
-  // Update profile block in sidebar
   document.getElementById('my-name').textContent = user.username;
   document.getElementById('my-tag').textContent = user.tag;
   document.getElementById('my-role').textContent = user.role;
@@ -125,11 +124,11 @@ function loadRoomContent() {
   socket.emit('chat:fetch_history', { room: currentRoom }, (messages) => {
     const container = document.getElementById('messages-container');
     container.innerHTML = '';
-    messages.forEach(msg => renderMessage(msg));
+    if (messages) messages.forEach(msg => renderMessage(msg));
   });
   
   socket.emit('poll:fetch', currentRoom, (polls) => {
-    renderPolls(polls);
+    if (polls) polls.forEach(poll => renderMessage({ ...poll, type: 'poll', sender: poll.creator }));
   });
 }
 
@@ -154,19 +153,55 @@ socket.on('chat:message', (msg) => {
 
 function renderMessage(msg) {
   const container = document.getElementById('messages-container');
+  if (!container || !currentUser) return;
+  
   const div = document.createElement('div');
   div.className = `message-row ${msg.sender === currentUser.username ? 'my-msg' : ''}`;
-  
-  const canDelete = currentUser.username === msg.sender || currentUser.role.includes('Owner');
-  const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" style="background:none;border:none;color:#ff8888;cursor:pointer;font-size:0.7rem;float:right;">🗑️</button>` : '';
 
-  div.innerHTML = `
-    <div class="msg-bubble glass-box">
-      ${deleteBtn}
-      <div style="font-size:0.75rem; color:var(--text-muted);">@${msg.sender} (${msg.role})</div>
-      <div>${msg.text}</div>
-    </div>
-  `;
+  if (msg.type === 'poll') {
+    let optionsHtml = '';
+    const totalVotes = msg.options ? msg.options.reduce((acc, opt) => acc + (opt.votes ? opt.votes.length : 0), 0) : 0;
+
+    msg.options.forEach((opt, index) => {
+      const voteCount = opt.votes ? opt.votes.length : 0;
+      const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+
+      optionsHtml += `
+        <div onclick="voteOnPoll('${msg.id}', ${index})" style="background: rgba(147, 51, 234, 0.15); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; margin-bottom: 4px; cursor: pointer; position: relative; overflow: hidden;">
+          <div style="position: absolute; top:0; left:0; bottom:0; width: ${percentage}%; background: rgba(147, 51, 234, 0.3); z-index: 1;"></div>
+          <div style="display: flex; justify-content: space-between; position: relative; z-index: 2; font-size: 0.8rem;">
+            <span>${opt.text}</span>
+            <span style="color: var(--accent-light);">${percentage}% (${voteCount})</span>
+          </div>
+        </div>
+      `;
+    });
+
+    const canDeletePoll = currentUser.username === msg.sender || currentUser.role.includes('Owner');
+    const deleteBtn = canDeletePoll ? `<button onclick="deletePoll('${msg.id}')" style="background:none; border:none; color:#ff8888; font-size:0.7rem; cursor:pointer; float:right;">🗑️ Delete</button>` : '';
+
+    div.innerHTML = `
+      <div class="msg-bubble glass-box" style="width: 280px; max-width: 90%; padding: 10px;">
+        ${deleteBtn}
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">📊 Poll by @${msg.sender}</div>
+        <div style="font-weight:bold; font-size:0.85rem; margin-bottom:8px;">${msg.question}</div>
+        ${optionsHtml}
+        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px; text-align:right;">Total Votes: ${totalVotes}</div>
+      </div>
+    `;
+  } else {
+    const canDelete = currentUser.username === msg.sender || currentUser.role.includes('Owner');
+    const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" style="background:none;border:none;color:#ff8888;cursor:pointer;font-size:0.7rem;float:right;">🗑️</button>` : '';
+
+    div.innerHTML = `
+      <div class="msg-bubble glass-box">
+        ${deleteBtn}
+        <div style="font-size:0.75rem; color:var(--text-muted);">@${msg.sender} (${msg.role})</div>
+        <div>${msg.text}</div>
+      </div>
+    `;
+  }
+
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
@@ -175,11 +210,58 @@ function deleteMessage(msgId) {
   socket.emit('chat:delete', { msgId, room: currentRoom });
 }
 
+function voteOnPoll(pollId, optionIdx) {
+  socket.emit('poll:vote', { pollId, optionIdx });
+}
+
+function deletePoll(pollId) {
+  if (confirm('Delete this poll?')) {
+    socket.emit('poll:delete', { pollId });
+  }
+}
+
+socket.on('poll:updated', ({ room }) => {
+  if (room === currentRoom) {
+    loadRoomContent();
+  }
+});
+
 socket.on('chat:refresh', () => {
   loadRoomContent();
 });
 
-// Modals
+// POLL CREATION
+function openPollModal() {
+  document.getElementById('poll-modal').classList.remove('hidden');
+}
+
+function closePollModal() {
+  document.getElementById('poll-modal').classList.add('hidden');
+}
+
+function submitNewPoll() {
+  const qEl = document.getElementById('poll-q-input');
+  const optInputs = document.querySelectorAll('.poll-opt-input');
+  
+  if (!qEl) return;
+  const question = qEl.value.trim();
+  const options = [];
+  optInputs.forEach(input => {
+    if (input.value.trim()) options.push(input.value.trim());
+  });
+
+  if (!question || options.length < 2) {
+    alert('Please enter a question and at least 2 options.');
+    return;
+  }
+
+  socket.emit('poll:create', { room: currentRoom, question, options });
+  qEl.value = '';
+  optInputs.forEach(i => i.value = '');
+  closePollModal();
+}
+
+// PROFILE & PAYMENTS
 function openMyProfile() {
   document.getElementById('profile-modal').classList.remove('hidden');
   document.getElementById('modal-username').textContent = currentUser.username;
@@ -197,15 +279,59 @@ function closeProfileModal() {
   document.getElementById('profile-modal').classList.add('hidden');
 }
 
+function saveProfileChanges() {
+  const newTag = document.getElementById('edit-tag').value.trim();
+  const newBio = document.getElementById('edit-bio').value.trim();
+  const newPaypal = document.getElementById('edit-paypal').value.trim();
+
+  socket.emit('profile:update', { tag: newTag, bio: newBio, paypalEmail: newPaypal }, (res) => {
+    if (res && res.success) {
+      currentUser.tag = newTag || currentUser.tag;
+      currentUser.bio = newBio || currentUser.bio;
+      currentUser.paypalEmail = newPaypal || currentUser.paypalEmail;
+      document.getElementById('my-tag').textContent = currentUser.tag;
+      alert('Profile updated successfully!');
+      closeProfileModal();
+    } else {
+      alert(res?.message || 'Failed to update profile');
+    }
+  });
+}
+
+function processPayment(type) {
+  const paypalEmail = currentUser.paypalEmail || 'starediter1@gmail.com';
+  let amount = 3;
+  let itemName = 'Personal Edit';
+
+  if (type === 'donate') {
+    const amtInput = document.getElementById('donate-amount');
+    amount = amtInput ? parseFloat(amtInput.value) || 5 : 5;
+    itemName = 'Creator Donation';
+  } else if (type === 'velocity') {
+    itemName = 'Velocity Edit ($3 USD)';
+  } else if (type === 'tiktok') {
+    itemName = 'TikTok Edit ($3 USD)';
+  }
+
+  alert(`Redirecting to PayPal for $${amount}. After payment, you will be directed to @starediter1's chat!`);
+  const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(paypalEmail)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD`;
+  window.open(paypalUrl, '_blank');
+}
+
 function logoutUser() {
   location.reload();
 }
 
+// LEADERBOARD
 function openLeaderboardModal() {
   document.getElementById('leaderboard-modal').classList.remove('hidden');
   socket.emit('leaderboard:fetch', (list) => {
     const ul = document.getElementById('leaderboard-list');
     ul.innerHTML = '';
+    if (!list || list.length === 0) {
+      ul.innerHTML = `<li>#1 @${currentUser.username} (${currentUser.selectedApp || 'After Effects'}) - ${currentUser.score || 100} pts [${currentUser.level || 'Pro 🔥'}]</li>`;
+      return;
+    }
     list.forEach((u, i) => {
       const li = document.createElement('li');
       li.textContent = `#${i+1} @${u.username} (${u.selectedApp}) - ${u.score} pts [${u.level}]`;
@@ -218,6 +344,7 @@ function closeLeaderboardModal() {
   document.getElementById('leaderboard-modal').classList.add('hidden');
 }
 
+// TRIVIA ARCADE
 function openTriviaModal() {
   document.getElementById('trivia-modal').classList.remove('hidden');
   document.getElementById('trivia-app-select').classList.remove('hidden');
@@ -228,6 +355,40 @@ function closeTriviaModal() {
   document.getElementById('trivia-modal').classList.add('hidden');
 }
 
+let triviaScore = 0;
+function startTriviaGame() {
+  const appDropdown = document.getElementById('selected-app-dropdown');
+  const selectedApp = appDropdown ? appDropdown.value : 'After Effects';
+  
+  document.getElementById('trivia-app-select').classList.add('hidden');
+  document.getElementById('trivia-game-box').classList.remove('hidden');
+  
+  document.getElementById('quiz-level-tag').textContent = `App: ${selectedApp}`;
+  document.getElementById('quiz-score-tag').textContent = `Points: ${triviaScore}`;
+  document.getElementById('trivia-question').textContent = `${selectedApp} specializes in what type of editing feature?`;
+  
+  const optionsContainer = document.getElementById('trivia-options');
+  optionsContainer.innerHTML = `
+    <button class="btn-secondary" onclick="answerTrivia(true)" style="width:100%; margin-bottom:6px; text-align:left;">3D Camera & Velocity</button>
+    <button class="btn-secondary" onclick="answerTrivia(false)" style="width:100%; margin-bottom:6px; text-align:left;">Color Grading</button>
+  `;
+}
+
+function answerTrivia(isCorrect) {
+  if (isCorrect) {
+    triviaScore += 20;
+    alert('Correct! +20 points 🎉');
+  } else {
+    alert('Incorrect! Try the next question.');
+  }
+  document.getElementById('quiz-score-tag').textContent = `Points: ${triviaScore}`;
+}
+
+function submitTriviaAnswerAndNext() {
+  startTriviaGame();
+}
+
+// ASSET VAULT
 function openAssetsModal() {
   document.getElementById('assets-modal').classList.remove('hidden');
   fetchAssets();
@@ -237,21 +398,57 @@ function closeAssetsModal() {
   document.getElementById('assets-modal').classList.add('hidden');
 }
 
-function openPollModal() {
-  document.getElementById('poll-modal').classList.remove('hidden');
+function fetchAssets() {
+  socket.emit('asset:fetch', (assets) => {
+    const list = document.getElementById('asset-list');
+    if (!list) return;
+    list.innerHTML = '';
+    assets.forEach(asset => {
+      const div = document.createElement('div');
+      div.className = 'glass-box';
+      div.style.padding = '8px';
+      div.style.marginBottom = '6px';
+      div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;">
+          <div>
+            <strong>${asset.name}</strong><br>
+            <span style="color:var(--text-muted); font-size:0.7rem;">Category: ${asset.category} | By @${asset.uploader}</span>
+          </div>
+          <a href="${asset.url}" target="_blank" style="color:var(--accent-light); text-decoration:none;">📥 Download</a>
+        </div>
+      `;
+      list.appendChild(div);
+    });
+  });
 }
 
-function closePollModal() {
-  document.getElementById('poll-modal').classList.add('hidden');
+async function uploadAssetToVault() {
+  const name = document.getElementById('new-asset-name').value.trim();
+  const category = document.getElementById('new-asset-cat').value;
+  const fileInput = document.getElementById('new-asset-file');
+
+  if (!name || !fileInput.files[0]) {
+    alert('Please enter an asset title and choose a file.');
+    return;
+  }
+
+  const url = await uploadFileToServer(fileInput.files[0]);
+  socket.emit('asset:upload', { name, category, url }, () => {
+    alert('Asset uploaded successfully!');
+    document.getElementById('new-asset-name').value = '';
+    fileInput.value = '';
+    fetchAssets();
+  });
 }
 
+// ANALYTICS & NOTIFICATIONS
 function openAnalytics() {
   document.getElementById('analytics-modal').classList.remove('hidden');
   socket.emit('analytics:fetch', (data) => {
-    document.getElementById('stat-registered').textContent = data.registeredCount;
-    document.getElementById('stat-online').textContent = data.activeOnline;
-    document.getElementById('stat-hours').textContent = data.hoursUsed;
-    document.getElementById('stat-revenue').textContent = data.revenue;
+    document.getElementById('stat-registered').textContent = data.registeredCount || 1;
+    document.getElementById('stat-online').textContent = data.activeOnline || 1;
+    document.getElementById('stat-hours').textContent = data.hoursUsed || '0.00';
+    document.getElementById('stat-revenue').textContent = data.revenue || '$0.00';
   });
 }
 
@@ -266,6 +463,10 @@ function toggleNotifBox() {
     socket.emit('notifications:fetch', (notifs) => {
       const list = document.getElementById('notif-list');
       list.innerHTML = '';
+      if (!notifs || notifs.length === 0) {
+        list.innerHTML = '<li style="font-size:0.75rem; color:var(--text-muted);">No new alerts</li>';
+        return;
+      }
       notifs.forEach(n => {
         const li = document.createElement('li');
         li.textContent = n.text;
@@ -282,3 +483,16 @@ async function uploadFileToServer(file) {
   const data = await res.json();
   return data.url;
 }
+
+socket.on('users:update', (users) => {
+  const list = document.getElementById('user-list');
+  if (!list) return;
+  list.innerHTML = '';
+  users.forEach(u => {
+    const li = document.createElement('li');
+    li.style.fontSize = '0.75rem';
+    li.style.padding = '3px 0';
+    li.textContent = `🟢 @${u.username}`;
+    list.appendChild(li);
+  });
+});
