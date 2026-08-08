@@ -36,11 +36,6 @@ const defaultDB = {
   chatHistory: { global: [], creator: {}, 'editing-comp': [] },
   privateDMs: {},
   polls: [],
-  assets: [
-    { id: 1, name: "Cinematic Whoosh", category: "Audio FX", url: "https://www.soundjay.com/free-music/sounds/barn-beat-01.mp3", uploader: "starediter1" },
-    { id: 2, name: "Sub Bass Drop", category: "Audio FX", url: "https://www.soundjay.com/button/sounds/button-1.mp3", uploader: "starediter1" },
-    { id: 3, name: "Film Grain Texture", category: "Overlays", url: "https://www.w3schools.com/html/mov_bbb.mp4", uploader: "starediter1" }
-  ],
   analytics: { totalSecondsUsed: 0, totalRevenue: 0 },
   notifications: []
 };
@@ -56,7 +51,6 @@ try {
       chatHistory: parsed.chatHistory || { global: [], creator: {}, 'editing-comp': [] },
       privateDMs: parsed.privateDMs || {},
       polls: parsed.polls || [],
-      assets: Array.isArray(parsed.assets) ? parsed.assets : defaultDB.assets,
       analytics: parsed.analytics || { totalSecondsUsed: 0, totalRevenue: 0 },
       notifications: parsed.notifications || []
     };
@@ -234,7 +228,7 @@ io.on('connection', (socket) => {
     if (db.registeredUsers[cleanKey]) {
       if (tag) db.registeredUsers[cleanKey].tag = tag;
       if (bio) db.registeredUsers[cleanKey].bio = bio;
-      if (paypalEmail && (cleanKey === OWNER_USERNAME)) {
+      if (paypalEmail && cleanKey === OWNER_USERNAME) {
         db.registeredUsers[cleanKey].paypalEmail = paypalEmail;
       }
       if (pfp !== undefined) db.registeredUsers[cleanKey].pfp = pfp;
@@ -251,6 +245,12 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('owner:paypal:fetch', (callback) => {
+    const ownerData = db.registeredUsers[OWNER_USERNAME];
+    const email = ownerData ? (ownerData.paypalEmail || DEFAULT_PAYPAL_EMAIL) : DEFAULT_PAYPAL_EMAIL;
+    if (typeof callback === 'function') callback({ paypalEmail: email });
+  });
+
   socket.on('trivia:submit', ({ score, selectedApp }, callback) => {
     const user = activeSockets[socket.id];
     if (!user) return;
@@ -265,18 +265,6 @@ io.on('connection', (socket) => {
       }
       saveDB();
       if (typeof callback === 'function') callback({ success: true, totalScore: db.registeredUsers[cleanKey].score, level: db.registeredUsers[cleanKey].level });
-    }
-  });
-
-  socket.on('trivia:reset', (callback) => {
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    const cleanKey = user.username.toLowerCase();
-    if (db.registeredUsers[cleanKey]) {
-      db.registeredUsers[cleanKey].score = 0;
-      db.registeredUsers[cleanKey].level = 'Novice';
-      saveDB();
-      if (typeof callback === 'function') callback({ success: true, totalScore: 0, level: 'Novice' });
     }
   });
 
@@ -412,36 +400,6 @@ io.on('connection', (socket) => {
     if (!Array.isArray(db.polls)) db.polls = [];
     const active = db.polls.filter(p => p.room === room);
     if (typeof callback === 'function') callback(active);
-  });
-
-  socket.on('asset:fetch', (callback) => { 
-    if (!Array.isArray(db.assets)) db.assets = [...defaultDB.assets];
-    if (typeof callback === 'function') callback(db.assets); 
-  });
-
-  socket.on('asset:upload', ({ name, category, url }) => {
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    if (!Array.isArray(db.assets)) db.assets = [];
-    const newAsset = { id: Date.now(), name, category, url, uploader: user.username };
-    db.assets.push(newAsset);
-    saveDB();
-    io.emit('asset:updated');
-  });
-
-  socket.on('asset:delete', ({ assetId }) => {
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    if (!Array.isArray(db.assets)) db.assets = [...defaultDB.assets];
-    const idx = db.assets.findIndex(a => a.id === assetId || a.id.toString() === assetId.toString());
-    if (idx !== -1) {
-      const asset = db.assets[idx];
-      if (user.isOwner || asset.uploader === user.username) {
-        db.assets.splice(idx, 1);
-        saveDB();
-        io.emit('asset:updated');
-      }
-    }
   });
 
   socket.on('chat:fetch_history', ({ room }, callback) => {

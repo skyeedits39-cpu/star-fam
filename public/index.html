@@ -55,7 +55,7 @@
   <!-- MAIN APP CONTAINER -->
   <div id="app" class="app-container hidden">
     
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR (Discord Style Vertical Navigation) -->
     <aside class="sidebar glass-box">
       <div class="sidebar-header" onclick="openMyProfile()" style="cursor: pointer;">
         <div id="my-avatar" class="avatar">S</div>
@@ -71,6 +71,7 @@
         <button id="btn-creator" class="nav-btn active" onclick="switchRoom('creator')">👑 Creator Direct Chat</button>
         <button id="btn-global" class="nav-btn" onclick="switchRoom('global')">🌐 Community Lounge</button>
         <button id="btn-comp" class="nav-btn" onclick="switchRoom('editing-comp')">🏆 Editing Comp</button>
+        <button id="btn-support" class="nav-btn" onclick="switchRoom('support-hub')">💖 Donations & Edits</button>
       </div>
 
       <div class="nav-section">
@@ -82,12 +83,11 @@
 
       <div class="sidebar-footer">
         <button class="btn-secondary" onclick="openTriviaModal()" style="width: 100%; margin-bottom: 6px; font-size: 0.75rem;">🎮 Trivia Arcade</button>
-        <button class="btn-secondary" onclick="openAssetsModal()" style="width: 100%; margin-bottom: 6px; font-size: 0.75rem;">📦 Asset Vault</button>
         <button class="btn-secondary" onclick="openLeaderboardModal()" style="width: 100%; font-size: 0.75rem;">🏆 Leaderboard</button>
       </div>
     </aside>
 
-    <!-- CHAT AREA -->
+    <!-- RIGHT DISPLAY AREA (Discord Style Screen View) -->
     <main class="chat-main glass-box">
       <header class="chat-header">
         <div>
@@ -107,13 +107,40 @@
         </div>
       </header>
 
-      <div id="messages-container" class="messages-container">
-        <!-- Messages populate here -->
+      <!-- CHAT VIEW SECTION -->
+      <div id="chat-active-area" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+        <div id="messages-container" class="messages-container">
+          <!-- Messages populate here -->
+        </div>
+
+        <div class="chat-input-area">
+          <input type="text" id="message-input" class="auth-input" placeholder="Type your message..." onkeypress="handleKeyPress(event)" style="flex: 1; margin-bottom: 0;">
+          <button class="btn-primary" onclick="sendMessage()">Send</button>
+        </div>
       </div>
 
-      <div class="chat-input-area">
-        <input type="text" id="message-input" class="auth-input" placeholder="Type your message..." onkeypress="handleKeyPress(event)" style="flex: 1; margin-bottom: 0;">
-        <button class="btn-primary" onclick="sendMessage()">Send</button>
+      <!-- SUPPORT & COMMISSIONS VIEW SECTION -->
+      <div id="support-section-view" class="hidden" style="flex: 1; overflow-y: auto; padding: 20px;">
+        <div class="glass-box" style="max-width: 500px; margin: 0 auto; padding: 25px;">
+          <h3 style="margin-bottom: 10px;">💖 Support & Personal Edits</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">I appreciate everything! Choose an option below to donate or request a personal edit. You will be redirected to checkout via PayPal and automatically connected to my chat.</p>
+          
+          <div style="margin-bottom: 20px;">
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Creator Donation ($ USD)</label>
+            <div style="display: flex; gap: 8px; margin-top: 5px;">
+              <input type="number" id="donate-amount" value="5" class="auth-input" style="width: 90px; margin-bottom: 0;">
+              <button class="btn-primary" onclick="processPayment('donate')" style="flex: 1;">Donate with PayPal</button>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 8px;">Order Personal Edit ($3 USD)</label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button class="btn-secondary" onclick="processPayment('velocity')" style="width: 100%; text-align: left; padding: 12px;">⚡ Velocity Edit ($3)</button>
+              <button class="btn-secondary" onclick="processPayment('tiktok')" style="width: 100%; text-align: left; padding: 12px;">🎵 TikTok Edit ($3)</button>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
 
@@ -131,10 +158,8 @@
         <div id="modal-bio" style="font-size: 0.8rem; color: var(--text-main); margin-top: 4px;"></div>
       </div>
 
-      <!-- Edit Section Toggle Button -->
       <button class="btn-secondary" onclick="toggleEditProfileMode()" style="width: 100%; margin-bottom: 15px;">✏️ Edit Profile Settings</button>
 
-      <!-- Hidden Edit Form Fields -->
       <div id="edit-profile-section" class="hidden" style="border-top: 1px solid var(--border-color); padding-top: 10px; margin-bottom: 15px;">
         <label style="font-size: 0.75rem; color: var(--text-muted);">Tag / Handle</label>
         <input type="text" id="edit-tag" class="auth-input" style="width: 100%; margin-bottom: 8px;">
@@ -142,25 +167,16 @@
         <label style="font-size: 0.75rem; color: var(--text-muted);">Bio / Description</label>
         <input type="text" id="edit-bio" class="auth-input" style="width: 100%; margin-bottom: 8px;">
 
-        <label style="font-size: 0.75rem; color: var(--text-muted);">PayPal Email</label>
-        <input type="text" id="edit-paypal" class="auth-input" style="width: 100%; margin-bottom: 8px;">
+        <!-- PayPal Email (Owner Only) -->
+        <div id="owner-paypal-field-container" class="hidden">
+          <label style="font-size: 0.75rem; color: var(--text-muted);">PayPal Email (Checkout Receiver)</label>
+          <input type="text" id="edit-paypal" class="auth-input" style="width: 100%; margin-bottom: 8px;">
+        </div>
 
         <label style="font-size: 0.75rem; color: var(--text-muted);">New Profile Picture</label>
         <input type="file" id="edit-pfp-file" class="auth-input" style="width: 100%; margin-bottom: 8px;" accept="image/*">
 
         <button class="btn-primary" onclick="saveProfileChanges()" style="width: 100%; margin-top: 5px;">Save Changes</button>
-      </div>
-
-      <div style="border-top: 1px solid var(--border-color); padding-top: 15px;">
-        <div style="font-size: 0.8rem; font-weight: bold; margin-bottom: 8px;">✨ Support & Commissions</div>
-        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-          <input type="number" id="donate-amount" value="5" class="auth-input" style="width: 70px;">
-          <button class="btn-primary" onclick="processPayment('donate')" style="flex: 1;">Donate with PayPal</button>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn-secondary" onclick="processPayment('velocity')" style="flex: 1; font-size: 0.75rem;">⚡ Velocity ($3)</button>
-          <button class="btn-secondary" onclick="processPayment('tiktok')" style="flex: 1; font-size: 0.75rem;">🎵 TikTok ($3)</button>
-        </div>
       </div>
 
       <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -196,7 +212,7 @@
     </div>
   </div>
 
-  <!-- TRIVIA MODAL -->
+  <!-- TRIVIA MODAL (No Reset Button) -->
   <div id="trivia-modal" class="modal hidden">
     <div class="glass-box modal-content" style="max-width: 450px; padding: 20px;">
       <h3>🎮 Editor Trivia Arcade</h3>
@@ -220,32 +236,9 @@
         <div id="trivia-question" style="font-weight: bold; margin-bottom: 15px; font-size: 0.9rem;">Question loading...</div>
         <div id="trivia-options" style="margin-bottom: 15px;"></div>
         <button class="btn-primary" onclick="submitTriviaAnswerAndNext()" style="width: 100%; margin-bottom: 6px;">Next Question</button>
-        <button class="btn-secondary" onclick="resetTriviaScore()" style="width: 100%; color: #ff8888; border-color: rgba(255,0,0,0.3);">🔄 Reset Score to 0</button>
       </div>
       
       <button class="btn-secondary" onclick="closeTriviaModal()" style="width: 100%; margin-top: 10px;">Exit Arcade</button>
-    </div>
-  </div>
-
-  <!-- ASSETS MODAL -->
-  <div id="assets-modal" class="modal hidden">
-    <div class="glass-box modal-content" style="max-width: 500px; padding: 20px; max-height: 85vh; overflow-y: auto;">
-      <h3>📦 Community Asset Vault</h3>
-      <div style="margin: 10px 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-        <input type="text" id="new-asset-name" class="auth-input" placeholder="Asset Name (e.g. Cinematic Whoosh)" style="width: 100%; margin-bottom: 6px;">
-        <select id="new-asset-cat" class="auth-input" style="width: 100%; margin-bottom: 6px;">
-          <option value="Audio FX">Audio FX</option>
-          <option value="Overlays">Overlays</option>
-          <option value="Presets">Presets</option>
-          <option value="Project Files">Project Files</option>
-        </select>
-        <input type="file" id="new-asset-file" class="auth-input" style="width: 100%; margin-bottom: 8px;">
-        <button class="btn-primary" onclick="uploadAssetToVault()" style="width: 100%;">Upload to Vault</button>
-      </div>
-      <div id="asset-list" style="max-height: 200px; overflow-y: auto;">
-        <!-- Populated dynamically -->
-      </div>
-      <button class="btn-secondary" onclick="closeAssetsModal()" style="width: 100%; margin-top: 15px;">Close Vault</button>
     </div>
   </div>
 

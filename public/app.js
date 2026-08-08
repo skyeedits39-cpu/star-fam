@@ -97,7 +97,7 @@ socket.on('auth:success', (user) => {
     document.getElementById('btn-notif-bell').classList.remove('hidden');
   }
 
-  loadRoomContent();
+  switchRoom('creator');
   loadDMsList();
 });
 
@@ -105,29 +105,46 @@ function switchRoom(room) {
   currentRoom = room;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   
+  // Hide support section view by default
+  document.getElementById('support-section-view').classList.add('hidden');
+  document.getElementById('chat-active-area').classList.remove('hidden');
+
   if (room === 'creator') {
     document.getElementById('btn-creator').classList.add('active');
     document.getElementById('room-title').textContent = '👑 Creator Direct Chat';
     document.getElementById('room-desc').textContent = currentUser && (currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner')) ? 'Incoming direct messages from editors & creators' : 'Direct private communication line with @starediter1';
     document.getElementById('btn-create-poll').classList.add('hidden');
+    loadRoomContent();
   } else if (room === 'global') {
     document.getElementById('btn-global').classList.add('active');
     document.getElementById('room-title').textContent = '🌐 Community Lounge';
     document.getElementById('room-desc').textContent = 'Public lounge for presets, edits & polls';
     document.getElementById('btn-create-poll').classList.remove('hidden');
+    loadRoomContent();
   } else if (room === 'editing-comp') {
     document.getElementById('btn-comp').classList.add('active');
     document.getElementById('room-title').textContent = '🏆 Editing Comp';
     document.getElementById('room-desc').textContent = 'Official Editing Competition channel!';
     document.getElementById('btn-create-poll').classList.remove('hidden');
+    loadRoomContent();
+  } else if (room === 'support-hub') {
+    document.getElementById('btn-support').classList.add('active');
+    document.getElementById('chat-active-area').classList.add('hidden');
+    document.getElementById('support-section-view').classList.remove('hidden');
   } else if (room.startsWith('dm-')) {
     const targetUser = room.replace('dm-', '');
+    document.getElementById('btn-creator').classList.add('active');
     document.getElementById('room-title').textContent = `💬 Direct Chat with @${targetUser}`;
     document.getElementById('room-desc').textContent = `Private messaging with @${targetUser}`;
     document.getElementById('btn-create-poll').classList.add('hidden');
+    loadRoomContent();
   }
 
-  loadRoomContent();
+  // On mobile, scroll right when a tab is selected
+  const appContainer = document.querySelector('.app-container');
+  if (window.innerWidth <= 768 && appContainer) {
+    appContainer.scrollTo({ left: appContainer.clientWidth, behavior: 'smooth' });
+  }
 }
 
 function loadRoomContent() {
@@ -353,15 +370,12 @@ function openMyProfile() {
   document.getElementById('edit-profile-section').classList.add('hidden');
 
   const isOwnerUser = currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner');
-  const supportSec = document.getElementById('owner-support-section');
   const paypalFieldContainer = document.getElementById('owner-paypal-field-container');
 
   if (isOwnerUser) {
-    if (supportSec) supportSec.classList.remove('hidden');
     if (paypalFieldContainer) paypalFieldContainer.classList.remove('hidden');
     document.getElementById('edit-paypal').value = currentUser.paypalEmail || '';
   } else {
-    if (supportSec) supportSec.classList.add('hidden');
     if (paypalFieldContainer) paypalFieldContainer.classList.add('hidden');
   }
 }
@@ -412,26 +426,27 @@ async function saveProfileChanges() {
 }
 
 function processPayment(type) {
-  const paypalEmail = currentUser.paypalEmail || 'starediter1@gmail.com';
-  let amount = 3;
-  let itemName = 'Personal Edit';
+  socket.emit('owner:paypal:fetch', (data) => {
+    const ownerPaypal = data.paypalEmail || 'starediter1@gmail.com';
+    let amount = 3;
+    let itemName = 'Personal Edit';
 
-  if (type === 'donate') {
-    const amtInput = document.getElementById('donate-amount');
-    amount = amtInput ? parseFloat(amtInput.value) || 5 : 5;
-    itemName = 'Creator Donation';
-  } else if (type === 'velocity') {
-    itemName = 'Velocity Edit ($3 USD)';
-  } else if (type === 'tiktok') {
-    itemName = 'TikTok Edit ($3 USD)';
-  }
+    if (type === 'donate') {
+      const amtInput = document.getElementById('donate-amount');
+      amount = amtInput ? parseFloat(amtInput.value) || 5 : 5;
+      itemName = 'Creator Donation';
+    } else if (type === 'velocity') {
+      itemName = 'Velocity Edit ($3 USD)';
+    } else if (type === 'tiktok') {
+      itemName = 'TikTok Edit ($3 USD)';
+    }
 
-  socket.emit('payment:completed', { type, amount, itemName }, () => {
-    alert(`Payment confirmed! Redirecting to PayPal for $${amount} and opening direct chat with @starediter1.`);
-    const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(paypalEmail)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD`;
-    window.open(paypalUrl, '_blank');
-    closeProfileModal();
-    switchRoom('creator');
+    socket.emit('payment:completed', { type, amount, itemName }, () => {
+      alert(`Payment confirmed! Redirecting to PayPal for $${amount} and opening direct chat with @starediter1.`);
+      const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(ownerPaypal)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD`;
+      window.open(paypalUrl, '_blank');
+      switchRoom('creator');
+    });
   });
 }
 
@@ -575,88 +590,6 @@ function submitTriviaAnswerAndNext() {
   });
 
   loadNextTriviaQuestion();
-}
-
-function resetTriviaScore() {
-  socket.emit('trivia:reset', (res) => {
-    if (res && res.success) {
-      sessionTriviaScore = 0;
-      currentUser.score = 0;
-      currentUser.level = 'Novice';
-      document.getElementById('quiz-score-tag').textContent = `Points: 0`;
-      alert('Your score has been reset to 0!');
-    }
-  });
-}
-
-function openAssetsModal() {
-  document.getElementById('assets-modal').classList.remove('hidden');
-  fetchAssets();
-}
-
-function closeAssetsModal() {
-  document.getElementById('assets-modal').classList.add('hidden');
-}
-
-function fetchAssets() {
-  socket.emit('asset:fetch', (assets) => {
-    const list = document.getElementById('asset-list');
-    if (!list || !currentUser) return;
-    list.innerHTML = '';
-    if (!assets || assets.length === 0) {
-      list.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No assets uploaded yet.</div>';
-      return;
-    }
-    assets.forEach(asset => {
-      const canDelete = currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner') || asset.uploader === currentUser.username;
-      const deleteBtnHtml = canDelete ? `<button onclick="deleteAsset(${asset.id})" style="background:none; border:none; color:#ff8888; cursor:pointer; font-size:0.8rem; margin-left:8px;">🗑️ Delete</button>` : '';
-
-      const div = document.createElement('div');
-      div.className = 'glass-box';
-      div.style.padding = '8px';
-      div.style.marginBottom = '6px';
-      div.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;">
-          <div>
-            <strong>${asset.name}</strong><br>
-            <span style="color:var(--text-muted); font-size:0.7rem;">Category: ${asset.category} | By @${asset.uploader}</span>
-          </div>
-          <div style="display:flex; align-items:center;">
-            <a href="${asset.url}" target="_blank" style="color:var(--accent-light); text-decoration:none;">📥 Download</a>
-            ${deleteBtnHtml}
-          </div>
-        </div>
-      `;
-      list.appendChild(div);
-    });
-  });
-}
-
-function deleteAsset(assetId) {
-  if (confirm('Are you sure you want to delete this asset?')) {
-    socket.emit('asset:delete', { assetId });
-  }
-}
-
-socket.on('asset:updated', () => {
-  fetchAssets();
-});
-
-async function uploadAssetToVault() {
-  const name = document.getElementById('new-asset-name').value.trim();
-  const category = document.getElementById('new-asset-cat').value;
-  const fileInput = document.getElementById('new-asset-file');
-
-  if (!name || !fileInput.files[0]) {
-    alert('Please enter an asset title and choose a file.');
-    return;
-  }
-
-  const url = await uploadFileToServer(fileInput.files[0]);
-  socket.emit('asset:upload', { name, category, url });
-  alert('Asset uploaded successfully!');
-  document.getElementById('new-asset-name').value = '';
-  fileInput.value = '';
 }
 
 function openAnalytics() {

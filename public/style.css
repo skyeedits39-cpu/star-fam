@@ -1,6 +1,6 @@
 :root {
   --bg-color: #0d0614;
-  --panel-bg: rgba(25, 15, 35, 0.75);
+  --panel-bg: rgba(25, 15, 35, 0.85);
   --accent: #9333ea;
   --accent-light: #c084fc;
   --text-main: #f3f4f6;
@@ -113,6 +113,7 @@ body {
   border-color: var(--accent-light);
 }
 
+/* Discord-Style Main Layout & Horizontal Mobile Swipe */
 .app-container {
   display: flex;
   width: 100vw;
@@ -124,32 +125,22 @@ body {
 
 @media (max-width: 768px) {
   .app-container {
-    flex-direction: column;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
     padding: 6px;
     gap: 6px;
   }
   .sidebar {
-    width: 100% !important;
-    height: auto;
-    max-height: 140px;
-    padding: 8px !important;
-    overflow-y: auto;
+    min-width: 100vw;
+    height: 100%;
+    scroll-snap-align: start;
+    border-radius: 0;
   }
-  .sidebar-footer {
-    display: flex;
-    gap: 5px;
-    padding-top: 6px !important;
-  }
-  .sidebar-footer button {
-    font-size: 0.65rem !important;
-    padding: 4px 6px !important;
-  }
-  .sidebar-header {
-    margin-bottom: 6px !important;
-    padding-bottom: 6px !important;
-  }
-  .nav-section {
-    display: none;
+  .chat-main {
+    min-width: 100vw;
+    height: 100%;
+    scroll-snap-align: start;
+    border-radius: 0;
   }
 }
 
@@ -216,7 +207,7 @@ body {
 
 .user-list {
   list-style: none;
-  max-height: 120px;
+  max-height: 150px;
   overflow-y: auto;
   padding-right: 4px;
 }
