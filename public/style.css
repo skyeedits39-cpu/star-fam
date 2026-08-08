@@ -113,7 +113,6 @@ body {
   border-color: var(--accent-light);
 }
 
-/* Discord-Style Main Layout & Horizontal Mobile Swipe */
 .app-container {
   display: flex;
   width: 100vw;

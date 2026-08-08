@@ -105,7 +105,6 @@ function switchRoom(room) {
   currentRoom = room;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   
-  // Hide support section view by default
   document.getElementById('support-section-view').classList.add('hidden');
   document.getElementById('chat-active-area').classList.remove('hidden');
 
@@ -140,7 +139,6 @@ function switchRoom(room) {
     loadRoomContent();
   }
 
-  // On mobile, scroll right when a tab is selected
   const appContainer = document.querySelector('.app-container');
   if (window.innerWidth <= 768 && appContainer) {
     appContainer.scrollTo({ left: appContainer.clientWidth, behavior: 'smooth' });
@@ -301,6 +299,16 @@ function deleteMessage(msgId) {
   socket.emit('chat:delete', { msgId, room: currentRoom });
 }
 
+function deleteCurrentChatThread() {
+  if (confirm('Are you sure you want to clear/delete this chat conversation?')) {
+    socket.emit('chat:delete_thread', { room: currentRoom });
+  }
+}
+
+socket.on('chat:refresh', () => {
+  loadRoomContent();
+});
+
 function voteOnPoll(pollId, optionIdx) {
   socket.emit('poll:vote', { pollId, optionIdx });
 }
@@ -315,10 +323,6 @@ socket.on('poll:updated', ({ room }) => {
   if (room === currentRoom) {
     loadRoomContent();
   }
-});
-
-socket.on('chat:refresh', () => {
-  loadRoomContent();
 });
 
 function openPollModal() {
@@ -441,12 +445,17 @@ function processPayment(type) {
       itemName = 'TikTok Edit ($3 USD)';
     }
 
-    socket.emit('payment:completed', { type, amount, itemName }, () => {
-      alert(`Payment confirmed! Redirecting to PayPal for $${amount} and opening direct chat with @starediter1.`);
-      const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(ownerPaypal)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD`;
-      window.open(paypalUrl, '_blank');
-      switchRoom('creator');
-    });
+    const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(ownerPaypal)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD`;
+    window.open(paypalUrl, '_blank');
+
+    setTimeout(() => {
+      if (confirm(`Did you successfully complete your payment of $${amount} on PayPal? Click OK to confirm and send your order to @starediter1!`)) {
+        socket.emit('payment:completed', { type, amount, itemName }, () => {
+          alert('Payment confirmed! Order sent successfully to @starediter1.');
+          switchRoom('creator');
+        });
+      }
+    }, 1500);
   });
 }
 

@@ -87,14 +87,15 @@
       </div>
     </aside>
 
-    <!-- RIGHT DISPLAY AREA (Discord Style Screen View) -->
+    <!-- RIGHT DISPLAY AREA -->
     <main class="chat-main glass-box">
       <header class="chat-header">
         <div>
           <h2 id="room-title">👑 Creator Direct Chat</h2>
           <span id="room-desc" style="font-size: 0.75rem; color: var(--text-muted);">Direct private communication line with @starediter1</span>
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn-secondary" onclick="deleteCurrentChatThread()" style="font-size: 0.75rem; color: #ff8888; border-color: rgba(255,0,0,0.3);">🗑️ Clear Chat</button>
           <button id="btn-create-poll" class="btn-secondary hidden" onclick="openPollModal()" style="font-size: 0.75rem;">📊 New Poll</button>
           <button id="btn-analytics" class="btn-secondary hidden" onclick="openAnalytics()" style="font-size: 0.75rem;">📊 Analytics</button>
           <div style="position: relative;">
@@ -212,7 +213,7 @@
     </div>
   </div>
 
-  <!-- TRIVIA MODAL (No Reset Button) -->
+  <!-- TRIVIA MODAL -->
   <div id="trivia-modal" class="modal hidden">
     <div class="glass-box modal-content" style="max-width: 450px; padding: 20px;">
       <h3>🎮 Editor Trivia Arcade</h3>

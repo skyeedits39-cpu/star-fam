@@ -292,7 +292,7 @@ io.on('connection', (socket) => {
     const autoMsg = {
       id: 'msg-' + Date.now(),
       sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
-      targetRoom: 'creator', text: `Hi! I just purchased a "${itemName}" for $${amount}. Let's get started!`,
+      targetRoom: 'creator', text: `Hi! I just completed my purchase of a "${itemName}" for $${amount}. Let's get started!`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
@@ -349,6 +349,28 @@ io.on('connection', (socket) => {
     const idx = list.findIndex(m => m.id === msgId);
     if (idx !== -1 && (list[idx].sender === user.username || user.isOwner || user.isMod)) {
       list.splice(idx, 1);
+      saveDB();
+      io.emit('chat:refresh', { room });
+    }
+  });
+
+  socket.on('chat:delete_thread', ({ room }) => {
+    const user = activeSockets[socket.id];
+    if (!user) return;
+    if (room.startsWith('dm-') || room === 'creator') {
+      const recipient = room === 'creator' ? OWNER_USERNAME : room.replace('dm-', '');
+      const threadKey = [user.username.toLowerCase(), recipient.toLowerCase()].sort().join('_');
+      if (db.privateDMs[threadKey]) {
+        delete db.privateDMs[threadKey];
+        saveDB();
+        socket.emit('chat:refresh', { room });
+      }
+    } else if (room === 'global') {
+      db.chatHistory.global = [];
+      saveDB();
+      io.emit('chat:refresh', { room });
+    } else if (room === 'editing-comp') {
+      db.chatHistory['editing-comp'] = [];
       saveDB();
       io.emit('chat:refresh', { room });
     }
