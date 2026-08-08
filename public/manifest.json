@@ -7,8 +7,8 @@
   "theme_color": "#8b5cf6",
   "icons": [
     {
-      "src": "https://img.icons8.com/fluent/192/192/star.png",
-      "sizes": "192x192",
+      "src": "/uploads/star-logo.png",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
