@@ -1,8 +1,9 @@
 const socket = io();
 
 let currentUser = null;
-let currentRoom = 'creator';
+let currentRoom = 'dm-starediter1';
 let replyToMessage = null;
+let pendingMediaFile = null;
 
 const authOverlay = document.getElementById('auth-overlay');
 const mainAppContainer = document.getElementById('app');
@@ -77,6 +78,7 @@ if (signupFormEl) {
 
 socket.on('auth:success', (user) => {
   currentUser = user;
+  localStorage.setItem('star_fam_user', JSON.stringify(user));
 
   if (authOverlay) authOverlay.classList.add('hidden');
   if (mainAppContainer) mainAppContainer.classList.remove('hidden');
@@ -97,24 +99,31 @@ socket.on('auth:success', (user) => {
     document.getElementById('btn-notif-bell').classList.remove('hidden');
   }
 
-  switchRoom('creator');
+  const defaultStartRoom = user.username.toLowerCase() === 'starediter1' ? 'dm-renedits' : 'dm-starediter1';
+  switchRoom(defaultStartRoom);
   loadDMsList();
+});
+
+// Auto-login session recovery on load
+window.addEventListener('DOMContentLoaded', () => {
+  const savedUser = localStorage.getItem('star_fam_user');
+  if (savedUser) {
+    try {
+      const parsed = JSON.parse(savedUser);
+      socket.emit('auth:login', { identifier: parsed.username, pin: parsed.pin }, (res) => {});
+    } catch(e) {}
+  }
 });
 
 function switchRoom(room) {
   currentRoom = room;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#user-list li').forEach(li => li.style.background = 'transparent');
   
   document.getElementById('support-section-view').classList.add('hidden');
   document.getElementById('chat-active-area').classList.remove('hidden');
 
-  if (room === 'creator') {
-    document.getElementById('btn-creator').classList.add('active');
-    document.getElementById('room-title').textContent = '👑 Creator Direct Chat';
-    document.getElementById('room-desc').textContent = currentUser && (currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner')) ? 'Incoming direct messages from editors & creators' : 'Direct private communication line with @starediter1';
-    document.getElementById('btn-create-poll').classList.add('hidden');
-    loadRoomContent();
-  } else if (room === 'global') {
+  if (room === 'global') {
     document.getElementById('btn-global').classList.add('active');
     document.getElementById('room-title').textContent = '🌐 Community Lounge';
     document.getElementById('room-desc').textContent = 'Public lounge for presets, edits & polls';
@@ -132,7 +141,6 @@ function switchRoom(room) {
     document.getElementById('support-section-view').classList.remove('hidden');
   } else if (room.startsWith('dm-')) {
     const targetUser = room.replace('dm-', '');
-    document.getElementById('btn-creator').classList.add('active');
     document.getElementById('room-title').textContent = `💬 Direct Chat with @${targetUser}`;
     document.getElementById('room-desc').textContent = `Private messaging with @${targetUser}`;
     document.getElementById('btn-create-poll').classList.add('hidden');
@@ -184,11 +192,15 @@ function loadDMsList() {
     }
 
     dms.forEach(dm => {
+      if (dm.username.toLowerCase() === currentUser.username.toLowerCase()) return;
       const li = document.createElement('li');
-      li.style.fontSize = '0.75rem';
-      li.style.padding = '4px 0';
+      li.style.fontSize = '0.8rem';
+      li.style.padding = '6px 8px';
+      li.style.borderRadius = '6px';
       li.style.cursor = 'pointer';
-      li.style.color = 'var(--text-main)';
+      li.style.margin = '2px 0';
+      li.style.color = currentRoom === `dm-${dm.username}` ? 'var(--accent-light)' : 'var(--text-main)';
+      li.style.background = currentRoom === `dm-${dm.username}` ? 'rgba(147, 51, 234, 0.25)' : 'transparent';
       li.innerHTML = `🟢 @${dm.username}`;
       li.onclick = () => switchRoom(`dm-${dm.username}`);
       userList.appendChild(li);
@@ -196,18 +208,39 @@ function loadDMsList() {
   });
 }
 
-function sendMessage() {
+async function handleMediaAttachment(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const indicator = document.getElementById('media-indicator');
+  if (indicator) indicator.textContent = `📎 Attached: ${file.name} (Uploading...)`;
+  
+  const mediaUrl = await uploadFileToServer(file);
+  pendingMediaFile = {
+    url: mediaUrl,
+    type: file.type.startsWith('video') ? 'video' : 'image'
+  };
+
+  if (indicator) indicator.textContent = `📎 Ready: ${file.name}`;
+}
+
+async function sendMessage() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
-  if (!text) return;
+  if (!text && !pendingMediaFile) return;
 
   socket.emit('chat:send', { 
     targetRoom: currentRoom, 
     text,
+    mediaUrl: pendingMediaFile ? pendingMediaFile.url : null,
+    mediaType: pendingMediaFile ? pendingMediaFile.type : null,
     replyTo: replyToMessage ? { id: replyToMessage.id, sender: replyToMessage.sender, text: replyToMessage.text } : null
   });
 
   input.value = '';
+  pendingMediaFile = null;
+  const indicator = document.getElementById('media-indicator');
+  if (indicator) indicator.textContent = '';
   cancelReply();
 }
 
@@ -233,7 +266,7 @@ function setReplyTo(id, sender, text) {
     const inputArea = document.querySelector('.chat-input-area');
     inputArea.insertBefore(previewBar, inputArea.firstChild);
   }
-  previewBar.innerHTML = `<span>Replying to <strong>@${sender}</strong>: ${text.substring(0, 30)}...</span> <button onclick="cancelReply()" style="background:none; border:none; color:#ff8888; cursor:pointer;">✕</button>`;
+  previewBar.innerHTML = `<span>Replying to <strong>@${sender}</strong>: ${(text || 'Media').substring(0, 30)}...</span> <button onclick="cancelReply()" style="background:none; border:none; color:#ff8888; cursor:pointer;">✕</button>`;
 }
 
 function cancelReply() {
@@ -284,11 +317,20 @@ function renderMessage(msg) {
     const isOwnerUser = currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner');
     const canDelete = currentUser.username === msg.sender || isOwnerUser;
     const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" title="Delete message" style="background:none; border:none; color:#ff8888; cursor:pointer; font-size:0.75rem; padding:0 4px; vertical-align:middle;">🗑️</button>` : '';
-    const replyBtn = `<button onclick="setReplyTo('${msg.id}', '${msg.sender}', \`${msg.text.replace(/`/g, '')}\`)" title="Reply" style="background:none; border:none; color:var(--accent-light); cursor:pointer; font-size:0.75rem; padding:0 4px; vertical-align:middle;">↩️</button>`;
+    const replyBtn = `<button onclick="setReplyTo('${msg.id}', '${msg.sender}', \`${(msg.text || '').replace(/`/g, '')}\`)" title="Reply" style="background:none; border:none; color:var(--accent-light); cursor:pointer; font-size:0.75rem; padding:0 4px; vertical-align:middle;">↩️</button>`;
 
     let replyContextHtml = '';
     if (msg.replyTo) {
       replyContextHtml = `<div style="font-size:0.7rem; background:rgba(0,0,0,0.2); padding:3px 6px; border-left:2px solid var(--accent-light); margin-bottom:4px; color:var(--text-muted);">Replying to @${msg.replyTo.sender}: ${msg.replyTo.text}</div>`;
+    }
+
+    let mediaHtml = '';
+    if (msg.mediaUrl) {
+      if (msg.mediaType === 'video') {
+        mediaHtml = `<div style="margin-top:6px;"><video src="${msg.mediaUrl}" controls style="max-width:100%; max-height:300px; border-radius:8px;"></video></div>`;
+      } else {
+        mediaHtml = `<div style="margin-top:6px;"><img src="${msg.mediaUrl}" style="max-width:100%; max-height:300px; border-radius:8px; object-fit:cover;"></div>`;
+      }
     }
 
     const avatarHtml = msg.pfp ? `<img src="${msg.pfp}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">` : '';
@@ -306,7 +348,8 @@ function renderMessage(msg) {
           </div>
         </div>
         ${replyContextHtml}
-        <div style="margin-top:2px;">${msg.text}</div>
+        ${msg.text ? `<div style="margin-top:2px;">${msg.text}</div>` : ''}
+        ${mediaHtml}
       </div>
     `;
   }
@@ -427,6 +470,7 @@ async function saveProfileChanges() {
       currentUser.bio = newBio || currentUser.bio;
       currentUser.paypalEmail = newPaypal || currentUser.paypalEmail;
       currentUser.pfp = newPfp;
+      localStorage.setItem('star_fam_user', JSON.stringify(currentUser));
       
       document.getElementById('my-tag').textContent = currentUser.tag;
       document.getElementById('modal-tag').textContent = currentUser.tag;
@@ -471,6 +515,7 @@ function processPayment(type) {
 }
 
 function logoutUser() {
+  localStorage.removeItem('star_fam_user');
   location.reload();
 }
 
@@ -680,19 +725,5 @@ async function uploadFileToServer(file) {
 }
 
 socket.on('users:update', (users) => {
-  const list = document.getElementById('user-list');
-  if (!list) return;
-  list.innerHTML = '';
-  users.users.forEach(u => {}); // safe guard
-  users.forEach(u => {
-    const li = document.createElement('li');
-    li.style.fontSize = '0.75rem';
-    li.style.padding = '3px 0';
-    li.style.cursor = 'pointer';
-    li.textContent = `🟢 @${u.username}`;
-    if (currentUser && u.username !== currentUser.username) {
-      li.onclick = () => switchRoom(`dm-${u.username}`);
-    }
-    list.appendChild(li);
-  });
+  loadDMsList();
 });

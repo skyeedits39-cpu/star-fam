@@ -55,7 +55,7 @@
   <!-- MAIN APP CONTAINER -->
   <div id="app" class="app-container hidden">
     
-    <!-- SIDEBAR (Discord Style Vertical Navigation) -->
+    <!-- SIDEBAR -->
     <aside class="sidebar glass-box">
       <div class="sidebar-header" onclick="openMyProfile()" style="cursor: pointer;">
         <div id="my-avatar" class="avatar">S</div>
@@ -68,14 +68,13 @@
 
       <div class="nav-section">
         <div class="nav-title">Navigation</div>
-        <button id="btn-creator" class="nav-btn active" onclick="switchRoom('creator')">👑 Creator Direct Chat</button>
         <button id="btn-global" class="nav-btn" onclick="switchRoom('global')">🌐 Community Lounge</button>
         <button id="btn-comp" class="nav-btn" onclick="switchRoom('editing-comp')">🏆 Editing Comp</button>
         <button id="btn-support" class="nav-btn" onclick="switchRoom('support-hub')">💖 Donations & Edits</button>
       </div>
 
       <div class="nav-section">
-        <div class="nav-title">Active Direct Chats</div>
+        <div class="nav-title">Direct Messages & Members</div>
         <ul id="user-list" class="user-list">
           <!-- Populated dynamically -->
         </ul>
@@ -93,8 +92,8 @@
         <div style="display: flex; align-items: center; gap: 8px;">
           <button id="mobile-toggle-btn" class="btn-secondary mobile-toggle-btn" onclick="toggleMobileView('sidebar')" style="font-size: 0.75rem; padding: 6px 10px;">☰ Menu</button>
           <div>
-            <h2 id="room-title" style="font-size: 1rem;">👑 Creator Direct Chat</h2>
-            <span id="room-desc" style="font-size: 0.7rem; color: var(--text-muted);">Direct private communication line with @starediter1</span>
+            <h2 id="room-title" style="font-size: 1rem;">💬 Direct Chat</h2>
+            <span id="room-desc" style="font-size: 0.7rem; color: var(--text-muted);">Private communication thread</span>
           </div>
         </div>
         <div style="display: flex; gap: 6px; align-items: center;">
@@ -116,9 +115,16 @@
           <!-- Messages populate here -->
         </div>
 
-        <div class="chat-input-area">
-          <input type="text" id="message-input" class="auth-input" placeholder="Type your message..." onkeypress="handleKeyPress(event)" style="flex: 1; margin-bottom: 0;">
-          <button class="btn-primary" onclick="sendMessage()">Send</button>
+        <div class="chat-input-area" style="flex-direction: column; gap: 6px;">
+          <div id="media-indicator" style="font-size: 0.7rem; color: var(--accent-light);"></div>
+          <div style="display: flex; gap: 8px; width: 100%;">
+            <label class="btn-secondary" style="display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 12px;" title="Attach Photo or Video">
+              📎
+              <input type="file" id="media-file-input" accept="image/*,video/*" style="display:none;" onchange="handleMediaAttachment(event)">
+            </label>
+            <input type="text" id="message-input" class="auth-input" placeholder="Type your message or attach media..." onkeypress="handleKeyPress(event)" style="flex: 1; margin-bottom: 0;">
+            <button class="btn-primary" onclick="sendMessage()">Send</button>
+          </div>
         </div>
       </div>
 

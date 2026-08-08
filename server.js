@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, { 
-  maxHttpBufferSize: 100 * 1024 * 1024 * 1024 
+  maxHttpBufferSize: 500 * 1024 * 1024 * 1024 // 500GB max buffer for massive video edits
 });
 
 const uploadDir = path.join(__dirname, 'public/uploads');
@@ -79,10 +79,10 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 * 1024 } });
+const upload = multer({ storage, limits: { fileSize: 500 * 1024 * 1024 * 1024 } });
 
-app.use(express.json({ limit: '100gb' }));
-app.use(express.urlencoded({ limit: '100gb', extended: true }));
+app.use(express.json({ limit: '500gb' }));
+app.use(express.urlencoded({ limit: '500gb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
@@ -94,10 +94,8 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   res.json({ url: `/uploads/${req.file.filename}`, originalName: req.file.originalname, size: sizeText });
 });
 
-// PAYPAL IPN VERIFICATION LISTENER (Automated Secure Payment Hook)
 app.post('/paypal/ipn', (req, res) => {
   res.status(200).send('OK');
-
   const body = req.body;
   body.cmd = '_notify-validate';
 
@@ -128,7 +126,6 @@ app.post('/paypal/ipn', (req, res) => {
 
         if (paymentStatus === 'Completed' && username) {
           db.analytics.totalRevenue = (db.analytics.totalRevenue || 0) + amount;
-          
           const notifText = `💰 @${username} automatically purchased "${itemName}" ($${amount} USD)!`;
           db.notifications.unshift({ id: Date.now(), text: notifText, timestamp: new Date().toLocaleTimeString() });
 
@@ -136,7 +133,7 @@ app.post('/paypal/ipn', (req, res) => {
           const autoMsg = {
             id: 'msg-' + Date.now(),
             sender: username, tag: '@' + username, role: 'Editor', pfp: null,
-            targetRoom: 'creator', text: `Hi! I successfully completed payment for "${itemName}" ($${amount}). Ready to get started!`,
+            targetRoom: `dm-${username}`, text: `Hi! I successfully completed payment for "${itemName}" ($${amount}). Ready to get started!`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
           if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
@@ -146,7 +143,7 @@ app.post('/paypal/ipn', (req, res) => {
           io.sockets.sockets.forEach(s => {
             const client = activeSockets[s.id];
             if (client && (client.username.toLowerCase() === OWNER_USERNAME || client.username.toLowerCase() === username.toLowerCase())) {
-              s.emit('chat:message', { ...autoMsg, room: 'creator' });
+              s.emit('chat:message', { ...autoMsg, room: `dm-${username}` });
             }
           });
         }
@@ -351,7 +348,7 @@ io.on('connection', (socket) => {
     const payload = {
       id: 'msg-' + Date.now() + '-' + Math.round(Math.random()*1000),
       sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
-      targetRoom: data.targetRoom, text: data.text || '', replyTo: data.replyTo || null,
+      targetRoom: data.targetRoom, text: data.text || '', mediaUrl: data.mediaUrl || null, mediaType: data.mediaType || null, replyTo: data.replyTo || null,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -361,8 +358,8 @@ io.on('connection', (socket) => {
     } else if (data.targetRoom === 'editing-comp') {
       db.chatHistory['editing-comp'].push(payload);
       io.emit('chat:message', payload);
-    } else if (data.targetRoom === 'creator' || data.targetRoom.startsWith('dm-')) {
-      const recipient = data.targetRoom === 'creator' ? OWNER_USERNAME : data.targetRoom.replace('dm-', '');
+    } else if (data.targetRoom.startsWith('dm-')) {
+      const recipient = data.targetRoom.replace('dm-', '');
       const threadKey = [user.username.toLowerCase(), recipient.toLowerCase()].sort().join('_');
       if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
       db.privateDMs[threadKey].push(payload);
@@ -380,7 +377,6 @@ io.on('connection', (socket) => {
   socket.on('chat:delete', ({ msgId, room }) => {
     const user = activeSockets[socket.id];
     if (!user) return;
-
     const isOwnerUser = user.isOwner || user.username.toLowerCase() === OWNER_USERNAME;
 
     if (room === 'global') {
@@ -463,20 +459,7 @@ io.on('connection', (socket) => {
     if (!user || typeof callback !== 'function') return;
     if (room === 'global') callback(db.chatHistory.global || []);
     else if (room === 'editing-comp') callback(db.chatHistory['editing-comp'] || []);
-    else if (room === 'creator') {
-      if (user.isOwner) {
-        const allMsgs = [];
-        Object.keys(db.privateDMs).forEach(key => {
-          if (key.includes(OWNER_USERNAME)) {
-            allMsgs.push(...db.privateDMs[key]);
-          }
-        });
-        callback(allMsgs);
-      } else {
-        const threadKey = [user.username.toLowerCase(), OWNER_USERNAME].sort().join('_');
-        callback(db.privateDMs[threadKey] || []);
-      }
-    } else if (room.startsWith('dm-')) {
+    else if (room.startsWith('dm-')) {
       const recipient = room.replace('dm-', '');
       const threadKey = [user.username.toLowerCase(), recipient.toLowerCase()].sort().join('_');
       callback(db.privateDMs[threadKey] || []);
@@ -486,17 +469,23 @@ io.on('connection', (socket) => {
   socket.on('dms:fetch_list', (callback) => {
     const user = activeSockets[socket.id];
     if (!user || typeof callback !== 'function') return;
-    const dms = [];
+    const dms = new Set();
+
     Object.keys(db.privateDMs).forEach(key => {
       if (key.includes(user.username.toLowerCase())) {
         const parts = key.split('_');
         const other = parts[0] === user.username.toLowerCase() ? parts[1] : parts[0];
-        if (other !== OWNER_USERNAME || user.isOwner) {
-          dms.push({ username: other });
-        }
+        if (other) dms.add(other);
       }
     });
-    callback(dms);
+
+    Object.keys(db.registeredUsers).forEach(uKey => {
+      if (uKey !== user.username.toLowerCase()) {
+        dms.add(db.registeredUsers[uKey].username);
+      }
+    });
+
+    callback(Array.from(dms).map(username => ({ username })));
   });
 
   socket.on('analytics:fetch', (callback) => {
