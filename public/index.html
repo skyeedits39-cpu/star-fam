@@ -44,9 +44,11 @@
 
       <!-- RECOVERY FORM -->
       <div id="recovery-form" class="hidden">
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Enter your username to verify account recovery or contact the owner.</p>
-        <input type="text" id="recovery-id" class="auth-input" placeholder="Your Username">
-        <button class="btn-primary" style="width: 100%; margin-bottom: 8px;" onclick="alert('Please contact @starediter1 in the community chat to reset your PIN.')">Verify Recovery</button>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Type recovery code <strong>1111</strong> and set a new PIN.</p>
+        <input type="text" id="recovery-id" class="auth-input" placeholder="Your Username or @tag" required>
+        <input type="password" id="recovery-code-input" class="auth-input" placeholder="Recovery Code (1111)" required>
+        <input type="password" id="recovery-new-pin" class="auth-input" placeholder="New 4-Digit PIN" required>
+        <button class="btn-primary" style="width: 100%; margin-bottom: 8px;" onclick="submitRecovery()">Reset PIN</button>
         <button class="btn-secondary" style="width: 100%;" onclick="setAuthMode('login')">Back to Login</button>
       </div>
     </div>
@@ -265,5 +267,24 @@
     </div>
   </div>
 
+  <script>
+    function submitRecovery() {
+      const identifier = document.getElementById('recovery-id').value;
+      const recoveryCode = document.getElementById('recovery-code-input').value;
+      const newPin = document.getElementById('recovery-new-pin').value;
+      
+      if (!identifier || !recoveryCode || !newPin) {
+        alert('Please fill out all fields.');
+        return;
+      }
+
+      socket.emit('auth:recover', { identifier, recoveryCode, newPin }, (res) => {
+        alert(res.message);
+        if (res.success) {
+          setAuthMode('login');
+        }
+      });
+    }
+  </script>
 </body>
 </html>
