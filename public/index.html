@@ -24,18 +24,41 @@
 
     <main class="main-content">
         <!-- Welcome Section -->
-        <section class="hero-section" style="text-align: center; padding: 40px 20px;">
+        <section class="hero-section" style="text-align: center; padding: 30px 20px;">
             <h1>Welcome to Star Fam</h1>
             <p>Your personal real-time community hub and messaging platform for creators.</p>
         </section>
 
-        <!-- Download Section (placed under Leaderboard navigation context) -->
-        <section id="download-section" style="text-align: center; margin: 50px auto; padding: 30px; max-width: 600px; background: rgba(255,255,255,0.03); border-radius: 12px; font-family: sans-serif;">
+        <!-- Authentication Section (Sign Up / Login) -->
+        <section class="auth-section" style="max-width: 400px; margin: 20px auto; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 8px; font-family: sans-serif;">
+            <div id="auth-tabs" style="display: flex; justify-content: space-around; margin-bottom: 20px; cursor: pointer; font-weight: bold;">
+                <span id="login-tab" onclick="switchAuthTab('login')" style="color: #8b5cf6; border-bottom: 2px solid #8b5cf6; padding-bottom: 5px;">Login</span>
+                <span id="signup-tab" onclick="switchAuthTab('signup')" style="color: #a1a1aa; padding-bottom: 5px;">Sign Up</span>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" style="display: flex; flex-direction: column; gap: 12px;">
+                <input type="email" placeholder="Email address" required style="padding: 10px; border-radius: 6px; border: 1px solid #3f3f46; background: #18181b; color: white;">
+                <input type="password" placeholder="Password" required style="padding: 10px; border-radius: 6px; border: 1px solid #3f3f46; background: #18181b; color: white;">
+                <button type="submit" style="background-color: #8b5cf6; color: white; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Login</button>
+            </form>
+
+            <!-- Sign Up Form (Hidden by default) -->
+            <form id="signup-form" style="display: none; flex-direction: column; gap: 12px;">
+                <input type="text" placeholder="Username" required style="padding: 10px; border-radius: 6px; border: 1px solid #3f3f46; background: #18181b; color: white;">
+                <input type="email" placeholder="Email address" required style="padding: 10px; border-radius: 6px; border: 1px solid #3f3f46; background: #18181b; color: white;">
+                <input type="password" placeholder="Password" required style="padding: 10px; border-radius: 6px; border: 1px solid #3f3f46; background: #18181b; color: white;">
+                <button type="submit" style="background-color: #8b5cf6; color: white; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Create Account</button>
+            </form>
+        </section>
+
+        <!-- Download Section (Placed under Leaderboard context) -->
+        <section id="download-section" style="text-align: center; margin: 40px auto; padding: 30px; max-width: 600px; background: rgba(255,255,255,0.03); border-radius: 12px; font-family: sans-serif;">
             <h2>Download StarFam for Android</h2>
             <p style="color: #a1a1aa; font-size: 15px; line-height: 1.5; margin: 15px 0;">
                 Get the official StarFam app directly on your Android device for free! Enjoy seamless real-time messaging, community interaction, and trivia on the go.
             </p>
-            <ul style="text-align: left; display: inline-block; color: #d4d4d8; font-size: 14px; margin-bottom: 25px; line-height: 1.6;">
+            <ul style="text-align: left; display: inline-block; color: #d4d4d8; font-size: 14px; margin-bottom: 20px; line-height: 1.6;">
                 <li>100% Free installation (No app store fees required)</li>
                 <li>Direct access to chats, polls, and live leaderboards</li>
                 <li>Automatic updates and full website synchronization</li>
@@ -52,5 +75,30 @@
         <p>&copy; 2026 Star Fam. All rights reserved.</p>
     </footer>
 
+    <!-- Script to handle Login/Sign Up Tab Toggle -->
+    <script>
+        function switchAuthTab(tab) {
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const loginTab = document.getElementById('login-tab');
+            const signupTab = document.getElementById('signup-tab');
+
+            if (tab === 'login') {
+                loginForm.style.display = 'flex';
+                signupForm.style.display = 'none';
+                loginTab.style.color = '#8b5cf6';
+                loginTab.style.borderBottom = '2px solid #8b5cf6';
+                signupTab.style.color = '#a1a1aa';
+                signupTab.style.borderBottom = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                signupForm.style.display = 'flex';
+                signupTab.style.color = '#8b5cf6';
+                signupTab.style.borderBottom = '2px solid #8b5cf6';
+                loginTab.style.color = '#a1a1aa';
+                loginTab.style.borderBottom = 'none';
+            }
+        }
+    </script>
 </body>
 </html>
