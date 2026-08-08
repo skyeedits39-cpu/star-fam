@@ -72,6 +72,7 @@ if (signupBtn) {
 socket.on('auth:success', (user) => {
   currentUser = user;
   
+  // Hide login overlay correctly like before
   if (authOverlay) {
     authOverlay.style.display = 'none';
     authOverlay.classList.add('hidden');
