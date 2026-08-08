@@ -345,34 +345,33 @@ io.on('connection', (socket) => {
   socket.on('chat:delete', ({ msgId, room }) => {
     const user = activeSockets[socket.id];
     if (!user) return;
-    let list = room === 'global' ? db.chatHistory.global : room === 'editing-comp' ? db.chatHistory['editing-comp'] : (db.chatHistory.creator[user.username] || []);
-    const idx = list.findIndex(m => m.id === msgId);
-    if (idx !== -1 && (list[idx].sender === user.username || user.isOwner || user.isMod)) {
-      list.splice(idx, 1);
-      saveDB();
-      io.emit('chat:refresh', { room });
-    }
-  });
 
-  socket.on('chat:delete_thread', ({ room }) => {
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    if (room.startsWith('dm-') || room === 'creator') {
-      const recipient = room === 'creator' ? OWNER_USERNAME : room.replace('dm-', '');
-      const threadKey = [user.username.toLowerCase(), recipient.toLowerCase()].sort().join('_');
-      if (db.privateDMs[threadKey]) {
-        delete db.privateDMs[threadKey];
+    const isOwnerUser = user.isOwner || user.username.toLowerCase() === OWNER_USERNAME;
+
+    if (room === 'global') {
+      const idx = db.chatHistory.global.findIndex(m => m.id === msgId);
+      if (idx !== -1 && (db.chatHistory.global[idx].sender === user.username || isOwnerUser)) {
+        db.chatHistory.global.splice(idx, 1);
         saveDB();
-        socket.emit('chat:refresh', { room });
+        io.emit('chat:refresh', { room });
       }
-    } else if (room === 'global') {
-      db.chatHistory.global = [];
-      saveDB();
-      io.emit('chat:refresh', { room });
     } else if (room === 'editing-comp') {
-      db.chatHistory['editing-comp'] = [];
-      saveDB();
-      io.emit('chat:refresh', { room });
+      const idx = db.chatHistory['editing-comp'].findIndex(m => m.id === msgId);
+      if (idx !== -1 && (db.chatHistory['editing-comp'][idx].sender === user.username || isOwnerUser)) {
+        db.chatHistory['editing-comp'].splice(idx, 1);
+        saveDB();
+        io.emit('chat:refresh', { room });
+      }
+    } else {
+      Object.keys(db.privateDMs).forEach(threadKey => {
+        const list = db.privateDMs[threadKey];
+        const idx = list.findIndex(m => m.id === msgId);
+        if (idx !== -1 && (list[idx].sender === user.username || isOwnerUser)) {
+          list.splice(idx, 1);
+          saveDB();
+          io.emit('chat:refresh', { room });
+        }
+      });
     }
   });
 

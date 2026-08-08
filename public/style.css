@@ -125,6 +125,7 @@ body {
 @media (max-width: 768px) {
   .app-container {
     overflow-x: auto;
+    overflow-y: hidden;
     scroll-snap-type: x mandatory;
     padding: 6px;
     gap: 6px;
@@ -134,12 +135,14 @@ body {
     height: 100%;
     scroll-snap-align: start;
     border-radius: 0;
+    overflow-y: auto !important;
   }
   .chat-main {
     min-width: 100vw;
     height: 100%;
     scroll-snap-align: start;
     border-radius: 0;
+    overflow-y: auto !important;
   }
 }
 
@@ -149,6 +152,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 15px;
+  overflow-y: auto;
 }
 
 .sidebar-header {
@@ -222,7 +226,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 15px;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .chat-header {
@@ -235,6 +239,8 @@ body {
 
 .messages-container {
   flex: 1;
+  min-height: 200px;
+  max-height: 55vh;
   overflow-y: auto;
   padding: 15px 0;
   display: flex;
@@ -264,6 +270,7 @@ body {
   gap: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border-color);
+  margin-top: auto;
 }
 
 .modal {
@@ -277,10 +284,14 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 2000;
+  overflow-y: auto;
+  padding: 10px;
 }
 
 .modal-content {
   width: 100%;
   max-width: 420px;
   padding: 20px;
+  max-height: 90vh;
+  overflow-y: auto;
 }

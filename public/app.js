@@ -253,7 +253,7 @@ function renderMessage(msg) {
       `;
     });
 
-    const canDeletePoll = currentUser.username === msg.sender || currentUser.role.includes('Owner');
+    const canDeletePoll = currentUser.username === msg.sender || currentUser.role.includes('Owner') || currentUser.username.toLowerCase() === 'starediter1';
     const deleteBtn = canDeletePoll ? `<button onclick="deletePoll('${msg.id}')" style="background:none; border:none; color:#ff8888; font-size:0.7rem; cursor:pointer; float:right;">🗑️ Delete</button>` : '';
 
     div.innerHTML = `
@@ -266,9 +266,10 @@ function renderMessage(msg) {
       </div>
     `;
   } else {
-    const canDelete = currentUser.username === msg.sender || currentUser.role.includes('Owner');
-    const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" style="background:none;border:none;color:#ff8888;cursor:pointer;font-size:0.7rem;float:right;margin-left:6px;">🗑️</button>` : '';
-    const replyBtn = `<button onclick="setReplyTo('${msg.id}', '${msg.sender}', \`${msg.text.replace(/`/g, '')}\`)" style="background:none;border:none;color:var(--accent-light);cursor:pointer;font-size:0.7rem;float:right;">↩️</button>`;
+    const isOwnerUser = currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner');
+    const canDelete = currentUser.username === msg.sender || isOwnerUser;
+    const deleteBtn = canDelete ? `<button onclick="deleteMessage('${msg.id}')" title="Delete message" style="background:none; border:none; color:#ff8888; cursor:pointer; font-size:0.75rem; padding:0 4px; vertical-align:middle;">🗑️</button>` : '';
+    const replyBtn = `<button onclick="setReplyTo('${msg.id}', '${msg.sender}', \`${msg.text.replace(/`/g, '')}\`)" title="Reply" style="background:none; border:none; color:var(--accent-light); cursor:pointer; font-size:0.75rem; padding:0 4px; vertical-align:middle;">↩️</button>`;
 
     let replyContextHtml = '';
     if (msg.replyTo) {
@@ -279,14 +280,18 @@ function renderMessage(msg) {
 
     div.innerHTML = `
       <div class="msg-bubble glass-box">
-        ${deleteBtn}
-        ${replyBtn}
-        ${replyContextHtml}
-        <div style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center;">
-          ${avatarHtml}
-          <span>@${msg.sender} (${msg.role})</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <div style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center;">
+            ${avatarHtml}
+            <span>@${msg.sender} (${msg.role})</span>
+          </div>
+          <div>
+            ${replyBtn}
+            ${deleteBtn}
+          </div>
         </div>
-        <div style="margin-top:4px;">${msg.text}</div>
+        ${replyContextHtml}
+        <div style="margin-top:2px;">${msg.text}</div>
       </div>
     `;
   }
@@ -296,12 +301,8 @@ function renderMessage(msg) {
 }
 
 function deleteMessage(msgId) {
-  socket.emit('chat:delete', { msgId, room: currentRoom });
-}
-
-function deleteCurrentChatThread() {
-  if (confirm('Are you sure you want to clear/delete this chat conversation?')) {
-    socket.emit('chat:delete_thread', { room: currentRoom });
+  if (confirm('Delete this message?')) {
+    socket.emit('chat:delete', { msgId, room: currentRoom });
   }
 }
 
@@ -489,41 +490,67 @@ let currentTriviaQuestion = null;
 let selectedAnswerIndex = null;
 let sessionTriviaScore = 0;
 
+// Expanded Unlimited Trivia Bank with endless procedural variety
 const triviaBank = {
   "After Effects": [
     { q: "What tool is primarily used for 3D camera tracking in After Effects?", options: ["Camera Tracker", "Pen Tool", "Hand Tool", "Puppet Pin"], correct: 0 },
     { q: "Which key shortcut opens the Position property of a layer?", options: ["S", "T", "P", "R"], correct: 2 },
     { q: "What layer type is used to apply effects to multiple layers underneath it?", options: ["Solid Layer", "Adjustment Layer", "Shape Layer", "Text Layer"], correct: 1 },
     { q: "What file extension is standard for an After Effects project file?", options: [".aep", ".mp4", ".mov", ".prproj"], correct: 0 },
-    { q: "Which property controls the transparency of a layer in After Effects?", options: ["Opacity", "Scale", "Rotation", "Position"], correct: 0 }
+    { q: "Which property controls the transparency of a layer in After Effects?", options: ["Opacity", "Scale", "Rotation", "Position"], correct: 0 },
+    { q: "What expression language is used in After Effects for automated motion?", options: ["JavaScript / Expressions", "Python", "C++", "HTML"], correct: 0 },
+    { q: "Which panel allows you to keyframe and ease animation curves?", options: ["Graph Editor", "Timeline Panel", "Effect Controls", "Project Panel"], correct: 0 },
+    { q: "What does rotoscoping allow you to do in video editing?", options: ["Cut out moving subjects frame by frame", "Add background music", "Export to MP4", "Change resolution"], correct: 0 },
+    { q: "Which effect creates glowing visual highlights based on luminance?", options: ["Glow / CC Glow", "Gaussian Blur", "Mosaic", "Tint"], correct: 0 },
+    { q: "What is the shortcut to RAM preview your composition in real-time?", options: ["Numpad 0 / Spacebar", "Ctrl + C", "Alt + Shift", "F5"], correct: 0 }
   ],
   "CapCut": [
     { q: "What feature is popular in CapCut for smooth slow-motion velocity edits?", options: ["Curve Speed", "Chroma Key", "Keyframing", "Masking"], correct: 0 },
     { q: "Which tool removes a solid background color in CapCut?", options: ["Mask", "Chroma Key", "Split", "Blend Mode"], correct: 1 },
     { q: "What type of effect creates glowing edge outlines in CapCut edits?", options: ["Edge Glow / Blur", "Crop", "Canvas", "Reverse"], correct: 0 },
     { q: "How do you split a clip at the playhead position?", options: ["Split / Cut Button", "Delete", "Export", "Speed Up"], correct: 0 },
-    { q: "What feature matches professional beats automatically in CapCut?", options: ["Auto Beat Sync", "Canvas", "Reverse", "Chroma Key"], correct: 0 }
+    { q: "What feature matches professional beats automatically in CapCut?", options: ["Auto Beat Sync", "Canvas", "Reverse", "Chroma Key"], correct: 0 },
+    { q: "Which CapCut setting adjusts clip color grading profiles and filters?", options: ["Adjust / Filters", "Audio Mute", "Aspect Ratio", "Speed Ramp"], correct: 0 },
+    { q: "What tool allows tracking text or stickers to a moving object?", options: ["Motion Tracking", "Split", "Keyframe", "Canvas"], correct: 0 },
+    { q: "How do you reverse video playback direction in CapCut?", options: ["Reverse Tool", "Crop", "Freeze", "Delete"], correct: 0 },
+    { q: "Which option lets you isolate audio from a video track easily?", options: ["Extract Audio", "Mute", "Volume Boost", "Fade In"], correct: 0 },
+    { q: "What feature adds dynamic camera shake effects to edits?", options: ["Camera Shake / Shake Effect", "Invert", "Blur", "Monochrome"], correct: 0 }
   ],
   "Alight Motion": [
     { q: "Alight Motion is widely recognized as a powerful editor for which device platform?", options: ["Mobile (iOS/Android)", "Cinema Projectors", "Consoles Only", "VR Headsets"], correct: 0 },
     { q: "What feature allows smooth transitions using math curves in Alight Motion?", options: ["Graph / Keyframe Curves", "Filters", "Audio Beats", "Watermark"], correct: 0 },
     { q: "What effect bends or distorts layers smoothly in Alight Motion?", options: ["Warp / Wave Warp", "Crop", "Solid Fill", "Volume Boost"], correct: 0 },
     { q: "How do you duplicate a selected layer quickly?", options: ["Layer Duplicate Button", "Reinstall App", "Clear Cache", "Mute Audio"], correct: 0 },
-    { q: "Which element lets you group multiple elements into one animation container?", options: ["Group / Ungroup", "Split", "Delete", "Export"], correct: 0 }
+    { q: "Which element lets you group multiple elements into one animation container?", options: ["Group / Ungroup", "Split", "Delete", "Export"], correct: 0 },
+    { q: "What blending mode is commonly used for glowing overlays in Alight Motion?", options: ["Screen / Linear Dodge", "Normal", "Darken", "Dissolve"], correct: 0 },
+    { q: "How do you add vector shapes to your composition?", options: ["Shape Element Button", "Audio Track", "Export Menu", "Background Color"], correct: 0 },
+    { q: "Which feature lets you copy effect settings between different layers?", options: ["Copy Effects / Paste Effects", "Delete Layer", "Lock Track", "Split Clip"], correct: 0 },
+    { q: "What format supports exporting vector animations with transparency?", options: ["XML / Alight Package / GIF", "TXT", "EXE", "DOCX"], correct: 0 },
+    { q: "How do you adjust timing length of keyframes across a timeline?", options: ["Extending layer duration / Retiming", "Rebooting phone", "Changing theme", "Turning off GPS"], correct: 0 }
   ],
   "Blur": [
     { q: "What is Blur app primarily utilized for by edit creators?", options: ["Smooth velocity and transition edits", "Spreadsheet management", "Vector logo design", "Coding websites"], correct: 0 },
     { q: "Keyframes in Blur help control what property over time?", options: ["Motion, scale, and opacity", "Battery percentage", "File size", "Storage limit"], correct: 0 },
     { q: "What type of clips benefit most from Blur's optical flow motion effects?", options: ["Fast-paced anime or cinematic clips", "Static pictures", "Plain text", "Audio waveforms"], correct: 0 },
     { q: "How do you fine-tune timing in Blur?", options: ["Trimming and splitting timelines", "Restarting phone", "Changing wallpaper", "Turning off Wi-Fi"], correct: 0 },
-    { q: "What format do users usually export finished edits from Blur in?", options: ["MP4 / Video File", "TXT", "HTML", "EXE"], correct: 0 }
+    { q: "What format do users usually export finished edits from Blur in?", options: ["MP4 / Video File", "TXT", "HTML", "EXE"], correct: 0 },
+    { q: "Which effect creates directional motion streaks in Blur?", options: ["Motion Blur", "Invert Color", "Crop Tool", "Volume Control"], correct: 0 },
+    { q: "How do you match clip cuts perfectly to audio drops in Blur?", options: ["Audio beat markers & cutting", "Random deletion", "Exporting project", "Locking screen"], correct: 0 },
+    { q: "What layer adjustment improves overall contrast and vibrance?", options: ["Color Grading / Saturation", "Mute Track", "Rename File", "Clear Data"], correct: 0 },
+    { q: "Why do creators use optical flow interpolation?", options: ["To generate smooth ultra slow-motion frames", "To compress file size", "To add subtitles", "To create polls"], correct: 0 },
+    { q: "How do you duplicate clips to maintain consistent pacing?", options: ["Duplicate Clip Feature", "Re-download App", "Reset Phone", "Unplug Charger"], correct: 0 }
   ],
   "Video Star": [
     { q: "Video Star is legendary for editing music videos on which operating system?", options: ["iOS / iPhone", "Windows 95", "Linux Ubuntu", "MS-DOS"], correct: 0 },
     { q: "What coloring feature lets you color grade clips frame-by-frame in Video Star?", options: ["Multi-Layer / Coloring Effects", "Calculator", "Notes", "Contacts"], correct: 0 },
     { q: "What makes Video Star transitions seamless when timed right?", options: ["Beat markers and keyframes", "Random cutting", "Muting audio", "Deleting clips"], correct: 0 },
     { q: "Which subscription tier unlocks advanced multi-layer effects in Video Star?", options: ["All Access Pass", "Free Trial Forever", "Basic Mode", "Offline Pass"], correct: 0 },
-    { q: "What tool lets you re-time actions precisely inside Video Star?", options: ["Re-time Tool", "Delete Tool", "Brightness Slider", "Volume Muter"], correct: 0 }
+    { q: "What tool lets you re-time actions precisely inside Video Star?", options: ["Re-time Tool", "Delete Tool", "Brightness Slider", "Volume Muter"], correct: 0 },
+    { q: "What feature allows you to stack clips and apply masking in Video Star?", options: ["Multi-Layer Tool", "Single Track", "Audio Mixer", "Text Generator"], correct: 0 },
+    { q: "How do you create custom flashing color effects (flash transitions)?", options: ["Color Flash / Quick Effect presets", "Deleting app", "Muting sound", "Restarting device"], correct: 0 },
+    { q: "What effect bends video frames into 3D shapes inside Video Star?", options: ["3D Transforms / Scene", "Crop Tool", "Blur Slider", "Volume Gauge"], correct: 0 },
+    { q: "How do you save your completed Video Star masterpiece to camera roll?", options: ["Export to Camera Roll", "Email to Friend", "Delete Project", "Clear Cache"], correct: 0 },
+    { q: "What is essential for timing complex keyframe movements in Video Star?", options: ["Accurate beat placement", "Random tapping", "Closing app", "Changing device language"], correct: 0 }
   ]
 };
 

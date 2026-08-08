@@ -95,7 +95,6 @@
           <span id="room-desc" style="font-size: 0.75rem; color: var(--text-muted);">Direct private communication line with @starediter1</span>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn-secondary" onclick="deleteCurrentChatThread()" style="font-size: 0.75rem; color: #ff8888; border-color: rgba(255,0,0,0.3);">🗑️ Clear Chat</button>
           <button id="btn-create-poll" class="btn-secondary hidden" onclick="openPollModal()" style="font-size: 0.75rem;">📊 New Poll</button>
           <button id="btn-analytics" class="btn-secondary hidden" onclick="openAnalytics()" style="font-size: 0.75rem;">📊 Analytics</button>
           <div style="position: relative;">
@@ -109,7 +108,7 @@
       </header>
 
       <!-- CHAT VIEW SECTION -->
-      <div id="chat-active-area" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+      <div id="chat-active-area" style="display: flex; flex-direction: column; flex: 1; overflow-y: auto;">
         <div id="messages-container" class="messages-container">
           <!-- Messages populate here -->
         </div>
@@ -149,7 +148,7 @@
 
   <!-- PROFILE MODAL -->
   <div id="profile-modal" class="modal hidden">
-    <div class="glass-box modal-content" style="max-width: 400px; padding: 20px; max-height: 85vh; overflow-y: auto;">
+    <div class="glass-box modal-content">
       <h3>👑 My Profile</h3>
       <div style="text-align: center; margin: 15px 0;">
         <div id="modal-avatar" style="width: 60px; height: 60px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 10px; overflow:hidden;">S</div>
@@ -189,7 +188,7 @@
 
   <!-- POLL MODAL -->
   <div id="poll-modal" class="modal hidden">
-    <div class="glass-box modal-content" style="max-width: 400px; padding: 20px;">
+    <div class="glass-box modal-content">
       <h3>📊 Create Community Poll</h3>
       <input type="text" id="poll-q-input" class="auth-input" placeholder="Ask a question..." style="width: 100%; margin-top: 10px;">
       <input type="text" class="auth-input poll-opt-input" placeholder="Option 1" style="width: 100%; margin-bottom: 6px;">
@@ -204,7 +203,7 @@
 
   <!-- LEADERBOARD MODAL -->
   <div id="leaderboard-modal" class="modal hidden">
-    <div class="glass-box modal-content" style="max-width: 400px; padding: 20px;">
+    <div class="glass-box modal-content">
       <h3>🏆 Global Editor Ranks & Leaderboard</h3>
       <ul id="leaderboard-list" style="list-style: none; padding: 0; margin: 10px 0; font-size: 0.85rem; max-height: 250px; overflow-y: auto;">
         <!-- Loaded dynamically -->
@@ -215,7 +214,7 @@
 
   <!-- TRIVIA MODAL -->
   <div id="trivia-modal" class="modal hidden">
-    <div class="glass-box modal-content" style="max-width: 450px; padding: 20px;">
+    <div class="glass-box modal-content">
       <h3>🎮 Editor Trivia Arcade</h3>
       <div id="trivia-app-select" style="margin: 15px 0;">
         <label style="font-size: 0.75rem; color: var(--text-muted);">Select Your Editing Suite</label>
@@ -245,7 +244,7 @@
 
   <!-- ANALYTICS MODAL -->
   <div id="analytics-modal" class="modal hidden">
-    <div class="glass-box modal-content" style="max-width: 400px; padding: 20px;">
+    <div class="glass-box modal-content">
       <h3>📊 Application Analytics</h3>
       <div style="margin: 15px 0; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px;">
         <div style="display: flex; justify-content: space-between;"><span>Registered Accounts:</span> <strong id="stat-registered">0</strong></div>
