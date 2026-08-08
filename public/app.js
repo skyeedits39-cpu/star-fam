@@ -490,7 +490,6 @@ let currentTriviaQuestion = null;
 let selectedAnswerIndex = null;
 let sessionTriviaScore = 0;
 
-// Expanded Unlimited Trivia Bank with endless procedural variety
 const triviaBank = {
   "After Effects": [
     { q: "What tool is primarily used for 3D camera tracking in After Effects?", options: ["Camera Tracker", "Pen Tool", "Hand Tool", "Puppet Pin"], correct: 0 },
