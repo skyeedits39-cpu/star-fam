@@ -398,7 +398,7 @@ a {
     left: -100%;
     width: 280px !important;
     height: 100vh;
-    z-index: 2500;
+    z-index: 99999 !important;
     transition: left 0.3s ease-in-out;
     background: var(--bg-sidebar);
     box-shadow: 15px 0 50px rgba(0, 0, 0, 0.9);
