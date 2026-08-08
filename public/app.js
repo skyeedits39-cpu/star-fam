@@ -67,9 +67,6 @@ if (signupFormEl) {
     const fileInput = document.getElementById('pfp-file-input');
     if (fileInput && fileInput.files[0]) {
       pfp = await uploadFileToServer(fileInput.files[0]);
-    } else {
-      const pfpText = document.getElementById('signup-pfp');
-      if (pfpText) pfp = pfpText.value.trim();
     }
 
     socket.emit('auth:signup', { username, pin, tag, bio, pfp }, (res) => {
@@ -359,10 +356,18 @@ function openMyProfile() {
   document.getElementById('edit-tag').value = currentUser.tag;
   document.getElementById('edit-bio').value = currentUser.bio;
   document.getElementById('edit-paypal').value = currentUser.paypalEmail || '';
+  
+  // Hide edit section by default when opening modal
+  document.getElementById('edit-profile-section').classList.add('hidden');
 }
 
 function closeProfileModal() {
   document.getElementById('profile-modal').classList.add('hidden');
+}
+
+function toggleEditProfileMode() {
+  const section = document.getElementById('edit-profile-section');
+  section.classList.toggle('hidden');
 }
 
 async function saveProfileChanges() {
@@ -384,8 +389,12 @@ async function saveProfileChanges() {
       currentUser.pfp = newPfp;
       
       document.getElementById('my-tag').textContent = currentUser.tag;
+      document.getElementById('modal-tag').textContent = currentUser.tag;
+      document.getElementById('modal-bio').textContent = currentUser.bio;
+
       if (newPfp) {
         document.getElementById('my-avatar').innerHTML = `<img src="${newPfp}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+        document.getElementById('modal-avatar').innerHTML = `<img src="${newPfp}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
       }
       
       alert('Profile updated successfully!');
