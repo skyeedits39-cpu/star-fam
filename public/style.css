@@ -374,11 +374,13 @@ a {
   box-shadow: 0 8px 30px rgba(0,0,0,0.4);
 }
 
-/* Mobile Slide-Over Overlay Fix */
+/* Mobile Slide-Over Drawer & Fixed Width Fix */
 @media (max-width: 768px) {
   body, html {
     overflow-x: hidden !important;
     position: relative;
+    width: 100vw;
+    height: 100vh;
   }
 
   #app {
@@ -395,10 +397,10 @@ a {
     left: -100%;
     width: 280px !important;
     height: 100vh;
-    z-index: 1000;
+    z-index: 2500;
     transition: left 0.3s ease-in-out;
     background: var(--bg-sidebar);
-    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.8);
+    box-shadow: 15px 0 50px rgba(0, 0, 0, 0.9);
   }
 
   .sidebar.mobile-open {
@@ -417,6 +419,7 @@ a {
     flex: 1;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
     overflow-y: auto;
   }
 }
