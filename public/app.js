@@ -518,9 +518,11 @@ function processPayment(type) {
 
   socket.emit('owner:paypal:fetch', (res) => {
     const receiver = res.paypalEmail || 'starediter1@gmail.com';
-    const customData = JSON.stringify({ username: currentUser.username });
+    const customData = JSON.stringify({ username: currentUser ? currentUser.username : 'guest' });
     const url = `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=${encodeURIComponent(receiver)}&item_name=${encodeURIComponent(itemName)}&amount=${amt}&currency_code=USD&custom=${encodeURIComponent(customData)}`;
-    window.open(url, '_blank');
+    
+    // Direct navigation for mobile compatibility
+    window.location.href = url;
   });
 }
 
