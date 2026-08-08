@@ -139,7 +139,6 @@ function switchRoom(room) {
     loadRoomContent();
   }
 
-  // On mobile screens, automatically toggle back to chat view when a room is clicked
   if (window.innerWidth <= 768) {
     toggleMobileView('chat');
   }
@@ -462,17 +461,12 @@ function processPayment(type) {
       itemName = 'TikTok Edit ($3 USD)';
     }
 
-    const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(ownerPaypal)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD`;
-    window.open(paypalUrl, '_blank');
+    const customData = JSON.stringify({ username: currentUser.username });
+    const returnUrl = window.location.origin;
 
-    setTimeout(() => {
-      if (confirm(`Did you successfully complete your payment of $${amount} on PayPal? Click OK to confirm and send your order to @starediter1!`)) {
-        socket.emit('payment:completed', { type, amount, itemName }, () => {
-          alert('Payment confirmed! Order sent successfully to @starediter1.');
-          switchRoom('creator');
-        });
-      }
-    }, 1500);
+    const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(ownerPaypal)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD&custom=${encodeURIComponent(customData)}&return=${encodeURIComponent(returnUrl)}&notify_url=${encodeURIComponent(window.location.origin + '/paypal/ipn')}`;
+    
+    window.location.href = paypalUrl;
   });
 }
 
@@ -689,6 +683,7 @@ socket.on('users:update', (users) => {
   const list = document.getElementById('user-list');
   if (!list) return;
   list.innerHTML = '';
+  users.users.forEach(u => {}); // safe guard
   users.forEach(u => {
     const li = document.createElement('li');
     li.style.fontSize = '0.75rem';

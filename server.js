@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 const app = express();
 const server = http.createServer(app);
@@ -91,6 +92,71 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     sizeText = (req.file.size / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   }
   res.json({ url: `/uploads/${req.file.filename}`, originalName: req.file.originalname, size: sizeText });
+});
+
+// PAYPAL IPN VERIFICATION LISTENER (Automated Secure Payment Hook)
+app.post('/paypal/ipn', (req, res) => {
+  res.status(200).send('OK');
+
+  const body = req.body;
+  body.cmd = '_notify-validate';
+
+  const queryString = Object.keys(body)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(body[key])}`)
+    .join('&');
+
+  const options = {
+    hostname: 'ipnpb.paypal.com',
+    method: 'POST',
+    path: '/cgi-bin/webscr',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': Buffer.byteLength(queryString)
+    }
+  };
+
+  const reqVerify = https.request(options, (resVerify) => {
+    let data = '';
+    resVerify.on('data', chunk => { data += chunk; });
+    resVerify.on('end', () => {
+      if (data.trim() === 'VERIFIED') {
+        const paymentStatus = body.payment_status;
+        const itemName = body.item_name || 'Personal Edit';
+        const amount = parseFloat(body.mc_gross || '3.00');
+        const customPayload = body.custom ? JSON.parse(body.custom) : null;
+        const username = customPayload ? customPayload.username : null;
+
+        if (paymentStatus === 'Completed' && username) {
+          db.analytics.totalRevenue = (db.analytics.totalRevenue || 0) + amount;
+          
+          const notifText = `💰 @${username} automatically purchased "${itemName}" ($${amount} USD)!`;
+          db.notifications.unshift({ id: Date.now(), text: notifText, timestamp: new Date().toLocaleTimeString() });
+
+          const threadKey = [username.toLowerCase(), OWNER_USERNAME].sort().join('_');
+          const autoMsg = {
+            id: 'msg-' + Date.now(),
+            sender: username, tag: '@' + username, role: 'Editor', pfp: null,
+            targetRoom: 'creator', text: `Hi! I successfully completed payment for "${itemName}" ($${amount}). Ready to get started!`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
+          db.privateDMs[threadKey].push(autoMsg);
+          saveDB();
+
+          io.sockets.sockets.forEach(s => {
+            const client = activeSockets[s.id];
+            if (client && (client.username.toLowerCase() === OWNER_USERNAME || client.username.toLowerCase() === username.toLowerCase())) {
+              s.emit('chat:message', { ...autoMsg, room: 'creator' });
+            }
+          });
+        }
+      }
+    });
+  });
+
+  reqVerify.on('error', e => console.error('IPN Verification Error:', e));
+  reqVerify.write(queryString);
+  reqVerify.end();
 });
 
 const DEFAULT_PAYPAL_EMAIL = 'starediter1@gmail.com';
@@ -277,37 +343,6 @@ io.on('connection', (socket) => {
     }));
     usersList.sort((a, b) => b.score - a.score);
     if (typeof callback === 'function') callback(usersList);
-  });
-
-  socket.on('payment:completed', ({ type, amount, itemName }, callback) => {
-    const user = activeSockets[socket.id];
-    if (!user) return;
-
-    db.analytics.totalRevenue = (db.analytics.totalRevenue || 0) + amount;
-    
-    const notifText = `💰 @${user.username} purchased "${itemName}" ($${amount} USD)!`;
-    db.notifications.unshift({ id: Date.now(), text: notifText, timestamp: new Date().toLocaleTimeString() });
-
-    const threadKey = [user.username.toLowerCase(), OWNER_USERNAME].sort().join('_');
-    const autoMsg = {
-      id: 'msg-' + Date.now(),
-      sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
-      targetRoom: 'creator', text: `Hi! I just completed my purchase of a "${itemName}" for $${amount}. Let's get started!`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
-    db.privateDMs[threadKey].push(autoMsg);
-
-    saveDB();
-
-    io.sockets.sockets.forEach(s => {
-      const client = activeSockets[s.id];
-      if (client && (client.username.toLowerCase() === OWNER_USERNAME || client.username.toLowerCase() === user.username.toLowerCase())) {
-        s.emit('chat:message', { ...autoMsg, room: 'creator' });
-      }
-    });
-
-    if (typeof callback === 'function') callback({ success: true });
   });
 
   socket.on('chat:send', (data) => {
