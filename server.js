@@ -145,6 +145,8 @@ io.on('connection', (socket) => {
           selectedApp: 'After Effects',
           createdAt: new Date()
         };
+      } else if (pfp) {
+        db.registeredUsers[cleanUser].pfp = pfp;
       }
     } else {
       if (db.registeredUsers[cleanUser]) {
@@ -241,7 +243,7 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback({ success: true });
   });
 
-  socket.on('profile:update', ({ tag, bio, paypalEmail }, callback) => {
+  socket.on('profile:update', ({ tag, bio, paypalEmail, pfp }, callback) => {
     const user = activeSockets[socket.id];
     if (!user) return;
     const cleanKey = user.username.toLowerCase();
@@ -249,9 +251,13 @@ io.on('connection', (socket) => {
       if (tag) db.registeredUsers[cleanKey].tag = tag;
       if (bio) db.registeredUsers[cleanKey].bio = bio;
       if (paypalEmail) db.registeredUsers[cleanKey].paypalEmail = paypalEmail;
+      if (pfp !== undefined) db.registeredUsers[cleanKey].pfp = pfp;
       saveDB();
+
       user.tag = db.registeredUsers[cleanKey].tag;
       user.bio = db.registeredUsers[cleanKey].bio;
+      user.pfp = db.registeredUsers[cleanKey].pfp;
+
       io.emit('users:update', Object.values(activeSockets));
       if (typeof callback === 'function') callback({ success: true });
     } else {

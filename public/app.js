@@ -62,11 +62,14 @@ if (signupFormEl) {
     const pin = document.getElementById('signup-pin').value.trim();
     const tag = document.getElementById('signup-tag').value.trim();
     const bio = document.getElementById('signup-bio').value.trim();
-    let pfp = document.getElementById('signup-pfp').value.trim();
+    let pfp = '';
 
     const fileInput = document.getElementById('pfp-file-input');
     if (fileInput && fileInput.files[0]) {
       pfp = await uploadFileToServer(fileInput.files[0]);
+    } else {
+      const pfpText = document.getElementById('signup-pfp');
+      if (pfpText) pfp = pfpText.value.trim();
     }
 
     socket.emit('auth:signup', { username, pin, tag, bio, pfp }, (res) => {
@@ -87,7 +90,13 @@ socket.on('auth:success', (user) => {
   document.getElementById('my-name').textContent = user.username;
   document.getElementById('my-tag').textContent = user.tag;
   document.getElementById('my-role').textContent = user.role;
-  document.getElementById('my-avatar').textContent = user.username.charAt(0).toUpperCase();
+  
+  const avatarEl = document.getElementById('my-avatar');
+  if (user.pfp) {
+    avatarEl.innerHTML = `<img src="${user.pfp}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+  } else {
+    avatarEl.textContent = user.username.charAt(0).toUpperCase();
+  }
 
   if (user.username.toLowerCase() === 'starediter1' || user.role.includes('Owner')) {
     document.getElementById('btn-analytics').classList.remove('hidden');
@@ -257,13 +266,18 @@ function renderMessage(msg) {
       replyContextHtml = `<div style="font-size:0.7rem; background:rgba(0,0,0,0.2); padding:3px 6px; border-left:2px solid var(--accent-light); margin-bottom:4px; color:var(--text-muted);">Replying to @${msg.replyTo.sender}: ${msg.replyTo.text}</div>`;
     }
 
+    const avatarHtml = msg.pfp ? `<img src="${msg.pfp}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">` : '';
+
     div.innerHTML = `
       <div class="msg-bubble glass-box">
         ${deleteBtn}
         ${replyBtn}
         ${replyContextHtml}
-        <div style="font-size:0.75rem; color:var(--text-muted);">@${msg.sender} (${msg.role})</div>
-        <div>${msg.text}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center;">
+          ${avatarHtml}
+          <span>@${msg.sender} (${msg.role})</span>
+        </div>
+        <div style="margin-top:4px;">${msg.text}</div>
       </div>
     `;
   }
@@ -334,8 +348,14 @@ function openMyProfile() {
   document.getElementById('modal-tag').textContent = currentUser.tag;
   document.getElementById('modal-role').textContent = currentUser.role;
   document.getElementById('modal-bio').textContent = currentUser.bio;
-  document.getElementById('modal-pfp').textContent = currentUser.username.charAt(0).toUpperCase();
-  document.getElementById('edit-profile-section').classList.remove('hidden');
+  
+  const avatarEl = document.getElementById('modal-avatar');
+  if (currentUser.pfp) {
+    avatarEl.innerHTML = `<img src="${currentUser.pfp}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+  } else {
+    avatarEl.textContent = currentUser.username.charAt(0).toUpperCase();
+  }
+
   document.getElementById('edit-tag').value = currentUser.tag;
   document.getElementById('edit-bio').value = currentUser.bio;
   document.getElementById('edit-paypal').value = currentUser.paypalEmail || '';
@@ -345,17 +365,29 @@ function closeProfileModal() {
   document.getElementById('profile-modal').classList.add('hidden');
 }
 
-function saveProfileChanges() {
+async function saveProfileChanges() {
   const newTag = document.getElementById('edit-tag').value.trim();
   const newBio = document.getElementById('edit-bio').value.trim();
   const newPaypal = document.getElementById('edit-paypal').value.trim();
+  const fileInput = document.getElementById('edit-pfp-file');
 
-  socket.emit('profile:update', { tag: newTag, bio: newBio, paypalEmail: newPaypal }, (res) => {
+  let newPfp = currentUser.pfp;
+  if (fileInput && fileInput.files[0]) {
+    newPfp = await uploadFileToServer(fileInput.files[0]);
+  }
+
+  socket.emit('profile:update', { tag: newTag, bio: newBio, paypalEmail: newPaypal, pfp: newPfp }, (res) => {
     if (res && res.success) {
       currentUser.tag = newTag || currentUser.tag;
       currentUser.bio = newBio || currentUser.bio;
       currentUser.paypalEmail = newPaypal || currentUser.paypalEmail;
+      currentUser.pfp = newPfp;
+      
       document.getElementById('my-tag').textContent = currentUser.tag;
+      if (newPfp) {
+        document.getElementById('my-avatar').innerHTML = `<img src="${newPfp}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+      }
+      
       alert('Profile updated successfully!');
       closeProfileModal();
     } else {
@@ -395,7 +427,7 @@ function openLeaderboardModal() {
     const ul = document.getElementById('leaderboard-list');
     ul.innerHTML = '';
     if (!list || list.length === 0) {
-      ul.innerHTML = `<li>#1 @${currentUser.username} (${currentUser.selectedApp || 'After Effects'}) - ${currentUser.score || 100} pts [${currentUser.level || 'Pro 🔥'}]</li>`;
+      ul.innerHTML = `<li>#1 @${currentUser.username} (${currentUser.selectedApp || 'After Effects'}) - ${currentUser.score || 0} pts [${currentUser.level || 'Novice'}]</li>`;
       return;
     }
     list.forEach((u, i) => {
@@ -578,7 +610,7 @@ socket.on('users:update', (users) => {
     li.style.padding = '3px 0';
     li.style.cursor = 'pointer';
     li.textContent = `🟢 @${u.username}`;
-    if (u.username !== currentUser.username) {
+    if (currentUser && u.username !== currentUser.username) {
       li.onclick = () => switchRoom(`dm-${u.username}`);
     }
     list.appendChild(li);
