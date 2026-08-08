@@ -7,14 +7,11 @@ let activeUsersList = [];
 // Initialize application socket listeners
 socket.on('connect', () => {
   console.log('Connected to server via WebSocket');
-  // Check local storage for persistent login session
   const savedUser = localStorage.getItem('star_fam_user');
   if (savedUser && !currentUser) {
     try {
       const userData = JSON.parse(savedUser);
-      socket.emit('auth:login', { identifier: userData.username, pin: userData.pin }, (res) => {
-        // Handled via auth:success
-      });
+      socket.emit('auth:login', { identifier: userData.username, pin: userData.pin }, (res) => {});
     } catch (e) {
       localStorage.removeItem('star_fam_user');
     }
@@ -57,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!res.success) {
           alert(res.message);
         } else {
-          // Temporarily store credentials for persistence
           localStorage.setItem('star_fam_user', JSON.stringify({ username: identifier, pin }));
         }
       });
@@ -102,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Media attachment selection state
 let attachedMediaUrl = null;
 let attachedMediaType = null;
 
@@ -127,7 +122,6 @@ function handleMediaAttachment(event) {
     });
 }
 
-// Listen for real-time messages across all rooms including direct messages
 socket.on('chat:message', (data) => {
   if (currentRoom === data.targetRoom || currentRoom === data.room) {
     appendMessage(data);
@@ -135,7 +129,6 @@ socket.on('chat:message', (data) => {
   }
 });
 
-// Handler when switching rooms or opening a direct message room
 function switchRoom(roomName) {
   currentRoom = roomName;
   
@@ -205,10 +198,18 @@ function appendMessage(msg) {
   const bubbleColor = isMe ? 'rgba(138, 43, 226, 0.25)' : 'rgba(255, 255, 255, 0.05)';
   const borderColor = isMe ? 'rgba(138, 43, 226, 0.4)' : 'rgba(255, 255, 255, 0.1)';
 
+  // Render user avatar thumbnail inside the message header
+  let avatarHtml = '';
+  if (msg.pfp) {
+    avatarHtml = `<img src="${msg.pfp}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 6px;">`;
+  } else {
+    avatarHtml = `<span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); text-align: center; line-height: 22px; font-size: 0.65rem; color: #fff; margin-right: 6px;">${msg.sender.charAt(0).toUpperCase()}</span>`;
+  }
+
   div.innerHTML = `
     <div style="max-width: 75%; background: ${bubbleColor}; border: 1px solid ${borderColor}; padding: 10px 14px; border-radius: 12px; word-break: break-word;">
-      <div style="display: flex; justify-content: space-between; gap: 15px; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px;">
-        <span><strong style="color: var(--text-main);">${msg.sender}</strong> <span style="color: var(--accent-light);">${msg.tag || ''}</span></span>
+      <div style="display: flex; justify-content: space-between; gap: 15px; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; align-items: center;">
+        <span>${avatarHtml}<strong style="color: var(--text-main);">${msg.sender}</strong> <span style="color: var(--accent-light);">${msg.tag || ''}</span></span>
         <span>${msg.timestamp}</span>
       </div>
       <div style="font-size: 0.85rem; color: var(--text-main);">${msg.text || ''}${mediaHtml}</div>
@@ -247,7 +248,6 @@ function scrollToBottom() {
   container.scrollTop = container.scrollHeight;
 }
 
-// Profile & Modals Control
 function openMyProfile() {
   if (!currentUser) return;
   document.getElementById('modal-username').innerText = currentUser.username;
@@ -296,6 +296,9 @@ function saveProfileChanges() {
       if (pfpUrl !== undefined) currentUser.pfp = pfpUrl;
       
       document.getElementById('my-tag').innerText = currentUser.tag;
+      if (currentUser.pfp) {
+        document.getElementById('my-avatar').innerHTML = `<img src="${currentUser.pfp}" style="width:100%; height:100%; object-fit:cover;">`;
+      }
       closeProfileModal();
       alert('✨ Profile updated successfully!');
     });
@@ -318,7 +321,6 @@ function logoutUser() {
   window.location.reload();
 }
 
-// Extra modals
 function openPollModal() { document.getElementById('poll-modal').classList.remove('hidden'); }
 function closePollModal() { document.getElementById('poll-modal').classList.add('hidden'); }
 
@@ -404,7 +406,6 @@ function renderUserList() {
   });
 }
 
-// Authentication Success Hook
 socket.on('auth:success', (user) => {
   currentUser = user;
   document.getElementById('auth-overlay').classList.add('hidden');
