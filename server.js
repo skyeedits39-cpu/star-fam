@@ -24,12 +24,14 @@ let db = null;
 
 async function startServer() {
   try {
-    const client = new MongoClient(mongoUrl);
+    const client = new MongoClient(mongoUrl, {
+      tls: true,
+      tlsAllowInvalidCertificates: true
+    });
     await client.connect();
     db = client.db(dbName);
     console.log('✨ Connected successfully to MongoDB Atlas Cloud Database');
 
-    // Initialize collections & default owner if empty
     const usersCol = db.collection('users');
     const ownerExists = await usersCol.findOne({ username: 'starediter1' });
     if (!ownerExists) {
