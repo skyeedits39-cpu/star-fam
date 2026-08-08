@@ -418,6 +418,8 @@ function scrollToBottom() {
 
 function openMyProfile() {
   if (!currentUser) return;
+  document.getElementById('sidebar-menu').classList.remove('mobile-open');
+
   document.getElementById('modal-username').innerText = currentUser.username;
   document.getElementById('modal-tag').innerText = currentUser.tag || `@${currentUser.username}`;
   document.getElementById('modal-role').innerText = currentUser.role || 'Editor';
@@ -472,7 +474,10 @@ function logoutUser() {
 
 function openPollModal() { document.getElementById('poll-modal').classList.remove('hidden'); }
 function closePollModal() { document.getElementById('poll-modal').classList.add('hidden'); }
+
 function openLeaderboardModal() {
+  document.getElementById('sidebar-menu').classList.remove('mobile-open');
+
   document.getElementById('leaderboard-modal').classList.remove('hidden');
   socket.emit('leaderboard:fetch', (list) => {
     let html = '';
@@ -485,6 +490,8 @@ function openLeaderboardModal() {
 function closeLeaderboardModal() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
 
 function openTriviaModal() {
+  document.getElementById('sidebar-menu').classList.remove('mobile-open');
+
   document.getElementById('trivia-setup-screen').classList.remove('hidden');
   document.getElementById('trivia-game-screen').classList.add('hidden');
   document.getElementById('trivia-modal').classList.remove('hidden');
