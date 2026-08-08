@@ -27,8 +27,8 @@ const defaultDB = {
       pfp: null,
       paypalEmail: "starediter1@gmail.com",
       role: "Owner 👑",
-      score: 100,
-      level: "Pro 🔥",
+      score: 0,
+      level: "Novice",
       selectedApp: "After Effects",
       createdAt: new Date()
     }
@@ -68,19 +68,21 @@ try {
   fs.writeFileSync(dataFilePath, JSON.stringify(defaultDB, null, 2));
 }
 
-db.registeredUsers["starediter1"] = {
-  username: "starediter1",
-  pin: "2030",
-  tag: "@starediter1",
-  bio: "VFX Motion Editor & Owner",
-  pfp: db.registeredUsers["starediter1"] ? db.registeredUsers["starediter1"].pfp : null,
-  paypalEmail: "starediter1@gmail.com",
-  role: "Owner 👑",
-  score: 100,
-  level: "Pro 🔥",
-  selectedApp: "After Effects",
-  createdAt: new Date()
-};
+if (!db.registeredUsers["starediter1"]) {
+  db.registeredUsers["starediter1"] = {
+    username: "starediter1",
+    pin: "2030",
+    tag: "@starediter1",
+    bio: "VFX Motion Editor & Owner",
+    pfp: null,
+    paypalEmail: "starediter1@gmail.com",
+    role: "Owner 👑",
+    score: 0,
+    level: "Novice",
+    selectedApp: "After Effects",
+    createdAt: new Date()
+  };
+}
 
 function saveDB() {
   try {
@@ -129,19 +131,21 @@ io.on('connection', (socket) => {
     }
 
     if (cleanUser === OWNER_USERNAME) {
-      db.registeredUsers[cleanUser] = {
-        username: 'starediter1',
-        pin: OWNER_PIN,
-        tag: cleanTag || '@starediter1',
-        bio: bio || 'VFX Motion Editor & Owner',
-        pfp: pfp || null,
-        paypalEmail: DEFAULT_PAYPAL_EMAIL,
-        role: 'Owner 👑',
-        score: 100,
-        level: 'Pro 🔥',
-        selectedApp: 'After Effects',
-        createdAt: new Date()
-      };
+      if (!db.registeredUsers[cleanUser]) {
+        db.registeredUsers[cleanUser] = {
+          username: 'starediter1',
+          pin: OWNER_PIN,
+          tag: cleanTag || '@starediter1',
+          bio: bio || 'VFX Motion Editor & Owner',
+          pfp: pfp || null,
+          paypalEmail: DEFAULT_PAYPAL_EMAIL,
+          role: 'Owner 👑',
+          score: 0,
+          level: 'Novice',
+          selectedApp: 'After Effects',
+          createdAt: new Date()
+        };
+      }
     } else {
       if (db.registeredUsers[cleanUser]) {
         if (typeof callback === 'function') callback({ success: false, message: '❌ Account username already exists! Please Log In.' });
@@ -183,17 +187,17 @@ io.on('connection', (socket) => {
   socket.on('auth:login', ({ identifier, pin }, callback) => {
     const cleanId = identifier.trim().toLowerCase();
     
-    if (cleanId === OWNER_USERNAME && pin === OWNER_PIN) {
+    if (cleanId === OWNER_USERNAME && pin === OWNER_PIN && !db.registeredUsers[OWNER_USERNAME]) {
       db.registeredUsers[OWNER_USERNAME] = {
         username: 'starediter1',
         pin: OWNER_PIN,
         tag: '@starediter1',
         bio: 'VFX Motion Editor & Owner',
-        pfp: db.registeredUsers[OWNER_USERNAME] ? db.registeredUsers[OWNER_USERNAME].pfp : null,
+        pfp: null,
         paypalEmail: DEFAULT_PAYPAL_EMAIL,
         role: 'Owner 👑',
-        score: 100,
-        level: 'Pro 🔥',
+        score: 0,
+        level: 'Novice',
         selectedApp: 'After Effects',
         createdAt: new Date()
       };
@@ -277,7 +281,6 @@ io.on('connection', (socket) => {
       if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
       db.privateDMs[threadKey].push(payload);
       
-      // Broadcast to matching sockets
       io.sockets.sockets.forEach(s => {
         const client = activeSockets[s.id];
         if (client && (client.username.toLowerCase() === user.username.toLowerCase() || client.username.toLowerCase() === recipient.toLowerCase())) {
@@ -385,7 +388,6 @@ io.on('connection', (socket) => {
     else if (room === 'editing-comp') callback(db.chatHistory['editing-comp'] || []);
     else if (room === 'creator') {
       if (user.isOwner) {
-        // Owner sees all threads from users who messaged them
         const allMsgs = [];
         Object.keys(db.privateDMs).forEach(key => {
           if (key.includes(OWNER_USERNAME)) {
