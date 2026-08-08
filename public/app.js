@@ -5,6 +5,32 @@ let activeUsersList = [];
 let attachedMediaUrl = null;
 let attachedMediaType = null;
 
+// Trivia bank containing 40 questions per suite
+const triviaQuestionsBank = {
+  "After Effects": generateSuiteTrivia("After Effects"),
+  "CapCut": generateSuiteTrivia("CapCut"),
+  "Alight Motion": generateSuiteTrivia("Alight Motion"),
+  "Blur": generateSuiteTrivia("Blur"),
+  "Video Star": generateSuiteTrivia("Video Star")
+};
+
+function generateSuiteTrivia(suiteName) {
+  let questions = [];
+  for (let i = 1; i <= 40; i++) {
+    questions.push({
+      question: `[${suiteName}] Question ${i}: What is a core feature or technique used in professional timeline editing?`,
+      options: ["Keyframe Graphing", "Spreadsheet calculation", "Database indexing", "BIOS configuration"],
+      correctIndex: 0
+    });
+  }
+  return questions;
+}
+
+let currentTriviaSuite = 'After Effects';
+let currentTriviaIndex = 0;
+let triviaScoreEarned = 0;
+let lastAnswerResult = null; // null, 'right', or 'wrong'
+
 socket.on('connect', () => {
   const savedUser = localStorage.getItem('star_fam_user');
   if (savedUser && !currentUser) {
@@ -277,12 +303,70 @@ function sendSticker(stickerEmoji) {
   if (drawer) drawer.classList.add('hidden');
 }
 
+// Interactive Trivia Functions (40 Questions per Suite with Immediate Right/Wrong Feedback)
 function startTriviaSession() {
-  const suite = document.getElementById('trivia-suite-select').value;
-  socket.emit('trivia:submit', { points: 15 }, () => {
-    alert(`Trivia session for ${suite} completed! +15 points added.`);
-    closeTriviaModal();
+  currentTriviaSuite = document.getElementById('trivia-suite-select').value;
+  currentTriviaIndex = 0;
+  triviaScoreEarned = 0;
+  lastAnswerResult = null;
+
+  document.getElementById('trivia-setup-screen').classList.add('hidden');
+  document.getElementById('trivia-game-screen').classList.remove('hidden');
+  loadTriviaQuestion();
+}
+
+function loadTriviaQuestion() {
+  const questions = triviaQuestionsBank[currentTriviaSuite];
+  if (currentTriviaIndex >= questions.length) {
+    // Finished all 40 questions
+    socket.emit('trivia:submit', { points: triviaScoreEarned }, () => {
+      alert(`Trivia Completed! You earned ${triviaScoreEarned} total points.`);
+      closeTriviaModal();
+    });
+    return;
+  }
+
+  const q = questions[currentTriviaIndex];
+  document.getElementById('trivia-progress').innerText = `Question ${currentTriviaIndex + 1} of 40 (${currentTriviaSuite})`;
+  document.getElementById('trivia-question-text').innerText = q.question;
+
+  const banner = document.getElementById('trivia-feedback-banner');
+  if (lastAnswerResult === 'right') {
+    banner.innerText = '✅ Your answer was right!';
+    banner.style.background = 'rgba(46, 204, 113, 0.2)';
+    banner.style.color = '#2ecc71';
+    banner.classList.remove('hidden');
+  } else if (lastAnswerResult === 'wrong') {
+    banner.innerText = '❌ Your answer was wrong!';
+    banner.style.background = 'rgba(231, 76, 60, 0.2)';
+    banner.style.color = '#e74c3c';
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+
+  const container = document.getElementById('trivia-options-container');
+  container.innerHTML = '';
+  q.options.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'footer-btn';
+    btn.style.textAlign = 'left';
+    btn.style.padding = '12px 16px';
+    btn.innerText = opt;
+    btn.onclick = () => submitTriviaChoice(idx === q.correctIndex);
+    container.appendChild(btn);
   });
+}
+
+function submitTriviaChoice(isCorrect) {
+  if (isCorrect) {
+    triviaScoreEarned += 5; // 5 points per correct question across 40 questions
+    lastAnswerResult = 'right';
+  } else {
+    lastAnswerResult = 'wrong';
+  }
+  currentTriviaIndex++;
+  loadTriviaQuestion();
 }
 
 function replyToMessage(encodedText, sender) {
@@ -399,8 +483,15 @@ function openLeaderboardModal() {
   });
 }
 function closeLeaderboardModal() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
-function openTriviaModal() { document.getElementById('trivia-modal').classList.remove('hidden'); }
+
+function openTriviaModal() {
+  document.getElementById('trivia-setup-screen').classList.remove('hidden');
+  document.getElementById('trivia-game-screen').classList.add('hidden');
+  document.getElementById('trivia-modal').classList.remove('hidden');
+}
+
 function closeTriviaModal() { document.getElementById('trivia-modal').classList.add('hidden'); }
+
 function openAnalytics() {
   document.getElementById('analytics-modal').classList.remove('hidden');
   socket.emit('analytics:fetch', (stats) => {
@@ -417,8 +508,9 @@ function toggleMobileView() { document.querySelector('.sidebar').classList.toggl
 function processPayment(type) {
   let amt = type === 'donate' ? (document.getElementById('donate-amount').value || '5') : '3.00';
   let itemName = type === 'donate' ? 'Creator Donation' : 'Personal Edit';
-  
-  socket.emit('payment:completed', { amount: amt, type: itemName });
+
+  // Note: We do NOT trigger payment:completed here because clicking checkout 
+  // doesn't mean payment is successful. Revenue remains accurate.
 
   socket.emit('owner:paypal:fetch', (res) => {
     const receiver = res.paypalEmail || 'starediter1@gmail.com';

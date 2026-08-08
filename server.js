@@ -245,17 +245,6 @@ io.on('connection', (socket) => {
     callback(list);
   });
 
-  socket.on('payment:completed', async ({ amount, type }) => {
-    if (!db) return;
-    const revCol = db.collection('revenueLogs');
-    await revCol.insertOne({ amount: parseFloat(amount), type, timestamp: new Date() });
-
-    io.emit('notification:new', {
-      title: 'New Payment Received!',
-      message: `Received $${parseFloat(amount).toFixed(2)} for ${type}!`
-    });
-  });
-
   socket.on('analytics:fetch', async (callback) => {
     if (!db) return callback({});
     const usersCol = db.collection('users');
