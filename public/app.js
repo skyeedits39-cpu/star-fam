@@ -3,6 +3,8 @@ let socket = io();
 let currentRoom = 'global';
 let currentUser = null;
 let activeUsersList = [];
+let attachedMediaUrl = null;
+let attachedMediaType = null;
 
 socket.on('connect', () => {
   const savedUser = localStorage.getItem('star_fam_user');
@@ -81,10 +83,43 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-});
 
-let attachedMediaUrl = null;
-let attachedMediaType = null;
+  // Inject Sticker Drawer HTML into DOM if not present
+  if (!document.getElementById('sticker-drawer')) {
+    const drawer = document.createElement('div');
+    drawer.id = 'sticker-drawer';
+    drawer.className = 'hidden';
+    drawer.style.cssText = 'position: absolute; bottom: 70px; left: 20px; background: rgba(20, 20, 30, 0.95); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.5); backdrop-filter: blur(10px); width: 260px;';
+    
+    const stickers = ['🔥', '✨', '😂', '💀', '💖', '🚀', '👑', '🏆', '🎉', '👀', '💯', '🎨', '⚡', '🌟', '🎬', '💎'];
+    stickers.forEach(stk => {
+      const btn = document.createElement('div');
+      btn.innerText = stk;
+      btn.style.cssText = 'font-size: 1.8rem; text-align: center; cursor: pointer; padding: 6px; border-radius: 8px; transition: background 0.2s;';
+      btn.onmouseover = () => btn.style.background = 'rgba(255,255,255,0.1)';
+      btn.onmouseout = () => btn.style.background = 'transparent';
+      btn.onclick = () => sendSticker(stk);
+      drawer.appendChild(btn);
+    });
+
+    const chatInputArea = document.querySelector('.chat-input-area') || document.getElementById('message-input').parentNode;
+    chatInputArea.style.position = 'relative';
+    chatInputArea.appendChild(drawer);
+
+    const stickerToggleBtn = document.createElement('button');
+    stickerToggleBtn.id = 'sticker-toggle-btn';
+    stickerToggleBtn.innerHTML = '🎨';
+    stickerToggleBtn.title = 'Send Sticker';
+    stickerToggleBtn.style.cssText = 'background: transparent; border: none; font-size: 1.2rem; cursor: pointer; padding: 4px 8px;';
+    stickerToggleBtn.onclick = (e) => {
+      e.stopPropagation();
+      drawer.classList.toggle('hidden');
+    };
+    
+    const inputField = document.getElementById('message-input');
+    inputField.parentNode.insertBefore(stickerToggleBtn, inputField);
+  }
+});
 
 function handleMediaAttachment(event) {
   const file = event.target.files[0];
@@ -168,40 +203,68 @@ function appendMessage(msg) {
   div.style.alignItems = isMe ? 'flex-end' : 'flex-start';
   div.style.marginBottom = '12px';
 
-  let mediaHtml = '';
-  if (msg.mediaUrl) {
-    if (msg.mediaType && msg.mediaType.startsWith('video')) {
-      mediaHtml = `<br><video src="${msg.mediaUrl}" controls preload="metadata" playsinline style="max-width: 260px; border-radius: 8px; margin-top: 6px;"></video>`;
-    } else {
-      mediaHtml = `<br><img src="${msg.mediaUrl}" style="max-width: 260px; border-radius: 8px; margin-top: 6px;">`;
+  let contentHtml = '';
+  if (msg.isSticker) {
+    contentHtml = `<div style="font-size: 3.5rem; line-height: 1;">${msg.text}</div>`;
+  } else {
+    let mediaHtml = '';
+    if (msg.mediaUrl) {
+      if (msg.mediaType && msg.mediaType.startsWith('video')) {
+        mediaHtml = `<br><video src="${msg.mediaUrl}" controls preload="metadata" playsinline style="max-width: 260px; border-radius: 8px; margin-top: 6px;"></video>`;
+      } else {
+        mediaHtml = `<br><img src="${msg.mediaUrl}" style="max-width: 260px; border-radius: 8px; margin-top: 6px;">`;
+      }
     }
+    contentHtml = `<div style="font-size: 0.85rem; color: var(--text-main);">${msg.text || ''}${mediaHtml}</div>`;
   }
 
-  const bubbleColor = isMe ? 'rgba(138, 43, 226, 0.25)' : 'rgba(255, 255, 255, 0.05)';
-  const borderColor = isMe ? 'rgba(138, 43, 226, 0.4)' : 'rgba(255, 255, 255, 0.1)';
+  const bubbleColor = msg.isSticker ? 'transparent' : (isMe ? 'rgba(138, 43, 226, 0.25)' : 'rgba(255, 255, 255, 0.05)');
+  const borderColor = msg.isSticker ? 'transparent' : (isMe ? 'rgba(138, 43, 226, 0.4)' : 'rgba(255, 255, 255, 0.1)');
+  const paddingStyle = msg.isSticker ? '4px' : '10px 14px';
 
   let avatarHtml = msg.pfp ? 
     `<img src="${msg.pfp}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 6px;">` : 
     `<span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); text-align: center; line-height: 22px; font-size: 0.65rem; color: #fff; margin-right: 6px;">${msg.sender.charAt(0).toUpperCase()}</span>`;
 
-  let actionButtons = `<div style="display: flex; gap: 8px; font-size: 0.65rem; margin-top: 4px; opacity: 0.7;">`;
-  actionButtons += `<span style="cursor: pointer; color: var(--accent-light);" onclick="forwardMessage('${encodeURIComponent(msg.text || '')}')">Forward ↗</span>`;
+  // Action bar with Reply beside Forward
+  let actionButtons = `<div style="display: flex; gap: 10px; font-size: 0.65rem; margin-top: 4px; opacity: 0.8;">`;
+  actionButtons += `<span style="cursor: pointer; color: var(--text-muted);" onclick="forwardMessage('${encodeURIComponent(msg.text || '')}')">Forward ↗</span>`;
+  if (!msg.isSticker) {
+    actionButtons += `<span style="cursor: pointer; color: var(--accent-light);" onclick="replyToMessage('${encodeURIComponent(msg.text || '')}', '${msg.sender}')">Reply ↩️</span>`;
+  }
   if (canDelete) {
     actionButtons += `<span style="cursor: pointer; color: #ff8888;" onclick="deleteMessage('${msg.id}')">Delete 🗑️</span>`;
   }
   actionButtons += `</div>`;
 
   div.innerHTML = `
-    <div style="max-width: 75%; background: ${bubbleColor}; border: 1px solid ${borderColor}; padding: 10px 14px; border-radius: 12px; word-break: break-word;">
+    <div style="max-width: 75%; background: ${bubbleColor}; border: 1px solid ${borderColor}; padding: ${paddingStyle}; border-radius: 12px; word-break: break-word;">
       <div style="display: flex; justify-content: space-between; gap: 15px; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; align-items: center;">
         <span>${avatarHtml}<strong style="color: var(--text-main);">${msg.sender}</strong> <span style="color: var(--accent-light);">${msg.tag || ''}</span></span>
         <span>${msg.timestamp}</span>
       </div>
-      <div style="font-size: 0.85rem; color: var(--text-main);">${msg.text || ''}${mediaHtml}</div>
+      ${contentHtml}
       ${actionButtons}
     </div>
   `;
   container.appendChild(div);
+}
+
+function sendSticker(stickerEmoji) {
+  socket.emit('chat:send', {
+    targetRoom: currentRoom,
+    text: stickerEmoji,
+    isSticker: true
+  });
+  const drawer = document.getElementById('sticker-drawer');
+  if (drawer) drawer.classList.add('hidden');
+}
+
+function replyToMessage(encodedText, sender) {
+  const text = decodeURIComponent(encodedText);
+  const input = document.getElementById('message-input');
+  input.value = `@${sender} replied: "${text}" - `;
+  input.focus();
 }
 
 function deleteMessage(msgId) {
@@ -224,7 +287,8 @@ function sendMessage() {
     targetRoom: currentRoom,
     text: text,
     mediaUrl: attachedMediaUrl,
-    mediaType: attachedMediaType
+    mediaType: attachedMediaType,
+    isSticker: false
   });
 
   input.value = '';

@@ -142,6 +142,7 @@ io.on('connection', (socket) => {
       id: 'msg-' + Date.now() + '-' + Math.round(Math.random()*1000),
       sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
       targetRoom: targetRoom, text: data.text || '', mediaUrl: data.mediaUrl || null, mediaType: data.mediaType || null,
+      isSticker: data.isSticker || false,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
