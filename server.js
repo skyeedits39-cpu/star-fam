@@ -269,7 +269,7 @@ io.on('connection', (socket) => {
     callback({ paypalEmail: owner ? owner.paypalEmail : 'starediter1@gmail.com' });
   });
 
-  socket.on('disconnect', () => {
+    socket.on('disconnect', () => {
     delete activeSockets[socket.id];
     io.emit('users:update', Object.values(activeSockets));
     console.log('Client disconnected:', socket.id);
