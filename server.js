@@ -286,6 +286,33 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback({ success: true });
   });
 
+  // Instant PIN Recovery via code 1111
+  socket.on('auth:recover', async ({ identifier, recoveryCode, newPin }, callback) => {
+    if (!db) return;
+    const cleanId = identifier.trim().toLowerCase();
+    const usersCol = db.collection('users');
+
+    if (recoveryCode !== '1111') {
+      if (typeof callback === 'function') callback({ success: false, message: '❌ Invalid recovery code! Type 1111 to reset.' });
+      return;
+    }
+
+    const userData = await usersCol.findOne({ 
+      $or: [
+        { username: { $regex: new RegExp(`^${cleanId}$`, 'i') } },
+        { tag: { $regex: new RegExp(`^${cleanId}$`, 'i') } }
+      ]
+    });
+
+    if (!userData) {
+      if (typeof callback === 'function') callback({ success: false, message: '❌ Account not found!' });
+      return;
+    }
+
+    await usersCol.updateOne({ _id: userData._id }, { $set: { pin: newPin } });
+    if (typeof callback === 'function') callback({ success: true, message: '✨ PIN successfully reset!' });
+  });
+
   socket.on('profile:update', async ({ tag, bio, paypalEmail, pfp }, callback) => {
     if (!db) return;
     const user = activeSockets[socket.id];
