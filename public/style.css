@@ -24,7 +24,7 @@ body, html {
   overflow: hidden;
 }
 
-button, input {
+button, input, select {
   background: none;
   border: none;
   color: inherit;
@@ -374,8 +374,24 @@ a {
   box-shadow: 0 8px 30px rgba(0,0,0,0.4);
 }
 
-/* Responsive Mobile Layout */
+/* Mobile Layout and Full Horizontal & Vertical Scrolling Support */
 @media (max-width: 768px) {
+  body, html {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    height: 100%;
+    width: 100%;
+  }
+
+  #app {
+    display: flex;
+    width: 100vw;
+    min-height: 100vh;
+    overflow-x: auto;
+    overflow-y: auto;
+    position: relative;
+  }
+
   .sidebar {
     position: fixed;
     top: 0;
@@ -383,12 +399,16 @@ a {
     width: 85% !important;
     max-width: 320px;
     height: 100vh;
-    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.8);
+    z-index: 1000;
     transition: left 0.3s ease-in-out;
+    background: var(--bg-sidebar);
+    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.8);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .sidebar.mobile-open {
-    left: 0;
+    left: 0 !important;
   }
 
   .menu-toggle-btn {
@@ -398,6 +418,18 @@ a {
   }
 
   .main-content {
-    width: 100% !important;
+    width: 100vw !important;
+    min-width: 350px;
+    height: 100vh;
+    overflow-x: auto;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-messages {
+    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }

@@ -5,7 +5,6 @@ let activeUsersList = [];
 let attachedMediaUrl = null;
 let attachedMediaType = null;
 
-// Trivia bank containing 40 questions per suite
 const triviaQuestionsBank = {
   "After Effects": generateSuiteTrivia("After Effects"),
   "CapCut": generateSuiteTrivia("CapCut"),
@@ -29,7 +28,7 @@ function generateSuiteTrivia(suiteName) {
 let currentTriviaSuite = 'After Effects';
 let currentTriviaIndex = 0;
 let triviaScoreEarned = 0;
-let lastAnswerResult = null; // null, 'right', or 'wrong'
+let lastAnswerResult = null;
 
 socket.on('connect', () => {
   const savedUser = localStorage.getItem('star_fam_user');
@@ -303,7 +302,6 @@ function sendSticker(stickerEmoji) {
   if (drawer) drawer.classList.add('hidden');
 }
 
-// Interactive Trivia Functions (40 Questions per Suite with Immediate Right/Wrong Feedback)
 function startTriviaSession() {
   currentTriviaSuite = document.getElementById('trivia-suite-select').value;
   currentTriviaIndex = 0;
@@ -318,7 +316,6 @@ function startTriviaSession() {
 function loadTriviaQuestion() {
   const questions = triviaQuestionsBank[currentTriviaSuite];
   if (currentTriviaIndex >= questions.length) {
-    // Finished all 40 questions
     socket.emit('trivia:submit', { points: triviaScoreEarned }, () => {
       alert(`Trivia Completed! You earned ${triviaScoreEarned} total points.`);
       closeTriviaModal();
@@ -360,7 +357,7 @@ function loadTriviaQuestion() {
 
 function submitTriviaChoice(isCorrect) {
   if (isCorrect) {
-    triviaScoreEarned += 5; // 5 points per correct question across 40 questions
+    triviaScoreEarned += 5;
     lastAnswerResult = 'right';
   } else {
     lastAnswerResult = 'wrong';
@@ -508,9 +505,6 @@ function toggleMobileView() { document.querySelector('.sidebar').classList.toggl
 function processPayment(type) {
   let amt = type === 'donate' ? (document.getElementById('donate-amount').value || '5') : '3.00';
   let itemName = type === 'donate' ? 'Creator Donation' : 'Personal Edit';
-
-  // Note: We do NOT trigger payment:completed here because clicking checkout 
-  // doesn't mean payment is successful. Revenue remains accurate.
 
   socket.emit('owner:paypal:fetch', (res) => {
     const receiver = res.paypalEmail || 'starediter1@gmail.com';
