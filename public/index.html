@@ -11,40 +11,40 @@
   <!-- AUTHENTICATION OVERLAY -->
   <div id="auth-overlay" class="auth-overlay">
     <div class="auth-card">
-      <h2>Welcome to Star Fam ✨</h2>
-      <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Connect, chat, compete in trivia, and order custom video edits.</p>
+      <h2 style="margin-bottom: 6px;">✨ Welcome to Star Fam</h2>
+      <p style="color: var(--text-muted); margin-bottom: 24px; font-size: 0.85rem;">Your personal real-time community hub and messaging platform</p>
       
-      <div class="auth-tabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
-        <button id="btn-toggle-login" class="footer-btn active" onclick="setAuthMode('login')">Log In</button>
-        <button id="btn-toggle-signup" class="footer-btn" onclick="setAuthMode('signup')">Sign Up</button>
+      <div class="auth-tabs">
+        <button id="btn-toggle-login" class="auth-tab-btn active" onclick="setAuthMode('login')">Log In</button>
+        <button id="btn-toggle-signup" class="auth-tab-btn" onclick="setAuthMode('signup')">Sign Up</button>
       </div>
 
       <!-- Login Form -->
       <form id="login-form" class="auth-form">
-        <input type="text" id="login-id" placeholder="Username or @tag" required style="width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <input type="password" id="login-pin" placeholder="Enter PIN (e.g. 1234)" required style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <button type="submit" class="footer-btn" style="width: 100%; background: var(--accent);">Log In</button>
-        <div style="text-align: right; margin-top: 8px;"><span style="font-size: 0.75rem; color: var(--accent-light); cursor: pointer;" onclick="openRecoveryScreen()">Forgot PIN?</span></div>
+        <input type="text" id="login-id" class="auth-input" placeholder="Username or @tag" required>
+        <input type="password" id="login-pin" class="auth-input" placeholder="Security PIN" required>
+        <button type="submit" class="auth-submit-btn">Log In</button>
+        <div style="text-align: center; margin-top: 14px;"><span style="font-size: 0.8rem; color: var(--accent-light); cursor: pointer;" onclick="openRecoveryScreen()">Forgot PIN?</span></div>
       </form>
 
       <!-- Signup Form -->
       <form id="signup-form" class="auth-form hidden">
-        <input type="text" id="signup-username" placeholder="Username (e.g. starediter1)" required style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <input type="password" id="signup-pin" placeholder="Create Security PIN" required style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <input type="text" id="signup-tag" placeholder="Display Tag (e.g. @starediter1)" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <input type="text" id="signup-bio" placeholder="Bio (e.g. Pro VFX Editor)" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Profile Picture:</label>
-        <input type="file" id="pfp-file-input" accept="image/*" style="width: 100%; margin-bottom: 15px; font-size: 0.8rem;">
-        <button type="submit" class="footer-btn" style="width: 100%; background: var(--accent);">Create Account</button>
+        <input type="text" id="signup-username" class="auth-input" placeholder="Username" required>
+        <input type="password" id="signup-pin" class="auth-input" placeholder="Security PIN" required>
+        <input type="text" id="signup-tag" class="auth-input" placeholder="Display Tag (e.g. @username)">
+        <input type="text" id="signup-bio" class="auth-input" placeholder="Bio / Description">
+        <label style="font-size: 0.75rem; color: var(--text-muted); display: block; text-align: left; margin-bottom: 4px;">Profile Picture:</label>
+        <input type="file" id="pfp-file-input" accept="image/*" style="width: 100%; margin-bottom: 16px; font-size: 0.8rem; color: var(--text-muted);">
+        <button type="submit" class="auth-submit-btn">Create Account</button>
       </form>
 
       <!-- Recovery Form -->
       <form id="recovery-form" class="auth-form hidden">
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">Enter your username and master recovery code (1111) to reset your PIN.</p>
-        <input type="text" id="recover-id" placeholder="Username or @tag" required style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <input type="password" id="recover-code" placeholder="Recovery Code (1111)" required style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <input type="password" id="recover-new-pin" placeholder="New PIN" required style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: white;">
-        <button type="submit" class="footer-btn" style="width: 100%; background: var(--accent);">Reset PIN</button>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Enter your username and master recovery code (1111) to reset your PIN.</p>
+        <input type="text" id="recover-id" class="auth-input" placeholder="Username or @tag" required>
+        <input type="password" id="recover-code" class="auth-input" placeholder="Recovery Code (1111)" required>
+        <input type="password" id="recover-new-pin" class="auth-input" placeholder="New PIN" required>
+        <button type="submit" class="auth-submit-btn">Reset PIN</button>
       </form>
     </div>
   </div>
@@ -56,7 +56,7 @@
     <div class="sidebar" id="sidebar-menu">
       <div>
         <!-- Profile Box -->
-        <div class="sidebar-profile" onclick="openMyProfile()" style="cursor: pointer;">
+        <div class="sidebar-profile" onclick="openMyProfile()">
           <div class="avatar-circle" id="my-avatar">S</div>
           <div>
             <h4 id="my-name" style="font-size: 0.95rem; color: var(--text-main);">Username</h4>
@@ -74,7 +74,7 @@
         </div>
 
         <!-- Direct Messages & Members List -->
-        <div class="sidebar-section" style="margin-top: 20px;">
+        <div class="sidebar-section" style="margin-top: 15px;">
           <h4>Direct Messages & Members</h4>
           <ul id="user-list" style="list-style: none; max-height: 220px; overflow-y: auto;"></ul>
         </div>
@@ -94,7 +94,7 @@
         <div class="chat-header-left">
           <button class="menu-toggle-btn" onclick="toggleMobileView()">Menu ☰</button>
           <div>
-            <h3 id="room-title">🌐 Community Lounge</h3>
+            <h3 id="room-title" style="font-size: 1.05rem;">🌐 Community Lounge</h3>
             <span id="room-desc" style="font-size: 0.75rem; color: var(--text-muted);">General community discussions & sharing</span>
           </div>
         </div>
@@ -112,30 +112,35 @@
         <!-- Chat Input Area -->
         <div class="chat-input-area">
           <input type="file" id="media-file-input" style="display: none;" onchange="handleMediaAttachment(event)">
-          <button title="Attach Media" onclick="document.getElementById('media-file-input').click()">📎</button>
+          <button title="Attach Media" onclick="document.getElementById('media-file-input').click()" style="font-size: 1.2rem; cursor: pointer; padding: 4px;">📎</button>
           <input type="text" id="message-input" placeholder="Type your message or attach media..." onkeypress="handleKeyPress(event)">
           <button class="send-btn" onclick="sendMessage()">Send</button>
         </div>
-        <div id="media-indicator" style="padding: 2px 20px; font-size: 0.75rem; color: var(--accent-light);"></div>
+        <div id="media-indicator" style="padding: 2px 24px; font-size: 0.75rem; color: var(--accent-light);"></div>
       </div>
 
       <!-- Support Hub / Donations & Personal Edits View -->
-      <div id="support-section-view" class="hidden" style="flex: 1; padding: 30px; overflow-y: auto;">
-        <h2>💖 Support Creator & Request Personal Edits</h2>
-        <p style="color: var(--text-muted); margin-bottom: 25px; font-size: 0.9rem;">Support the community or commission custom video edits directly.</p>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px;">
-            <h3>Creator Donation</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin: 10px 0;">Tip the creator to keep community servers running.</p>
-            <input type="number" id="donate-amount" value="5" min="1" style="width: 100%; padding: 10px; margin-bottom: 12px; background: var(--bg-main); border: 1px solid var(--border-color); color: white; border-radius: 8px;">
-            <button class="footer-btn" style="width: 100%; background: var(--accent);" onclick="processPayment('donate')">Donate with PayPal</button>
+      <div id="support-section-view" class="hidden" style="flex: 1; padding: 20px; overflow-y: auto;">
+        <div class="support-container">
+          <h3 style="margin-bottom: 6px;">💖 Support & Personal Edits</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px;">I appreciate everything! Choose an option below to donate or request a personal edit. You will be redirected to checkout via PayPal and automatically connected to my chat.</p>
+          
+          <div style="margin-bottom: 24px;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Creator Donation ($ USD)</label>
+            <div style="display: flex; gap: 12px;">
+              <input type="number" id="donate-amount" value="5" min="1" style="width: 90px; padding: 12px; background: var(--bg-main); border: 1px solid var(--border-color); color: white; border-radius: 10px; font-size: 0.95rem;">
+              <button class="footer-btn" style="flex: 1; background: var(--accent);" onclick="processPayment('donate')">Donate with PayPal</button>
+            </div>
           </div>
 
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px;">
-            <h3>Order Personal Edit ($3.00)</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin: 10px 0;">Get custom video edits, transitions, and effects tailored for you.</p>
-            <button class="footer-btn" style="width: 100%; background: var(--accent);" onclick="processPayment('edit')">Order Edit via PayPal</button>
+          <hr style="border: none; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+          <div>
+            <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 10px;">Order Personal Edit ($3 USD)</label>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <button class="footer-btn" style="justify-content: flex-start; padding: 14px 18px;" onclick="processPayment('edit-velocity')">⚡ Velocity Edit ($3)</button>
+              <button class="footer-btn" style="justify-content: flex-start; padding: 14px 18px;" onclick="processPayment('edit-tiktok')">🎵 TikTok Edit ($3)</button>
+            </div>
           </div>
         </div>
       </div>
@@ -143,54 +148,59 @@
   </div>
 
   <!-- PROFILE MODAL -->
-  <div id="profile-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-    <div style="background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 25px; border-radius: 14px; width: 340px; position: relative;">
-      <span style="position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 1.1rem;" onclick="closeProfileModal()">✕</span>
-      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-        <div id="modal-avatar" style="width: 50px; height: 50px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; overflow: hidden;">S</div>
+  <div id="profile-modal" class="hidden modal-overlay">
+    <div class="modal-card">
+      <span style="position: absolute; top: 15px; right: 18px; cursor: pointer; font-size: 1.1rem; color: var(--text-muted);" onclick="closeProfileModal()">✕</span>
+      <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
+        <div id="modal-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; overflow: hidden; font-size: 1.2rem;">S</div>
         <div>
-          <h3 id="modal-username">Username</h3>
+          <h3 id="modal-username" style="font-size: 1.05rem;">Username</h3>
           <span id="modal-tag" style="font-size: 0.8rem; color: var(--accent-light);">@tag</span>
           <div id="modal-role" style="font-size: 0.7rem; color: var(--text-muted);">Editor</div>
         </div>
       </div>
-      <p id="modal-bio" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Bio here...</p>
+      <p id="modal-bio" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4;">Bio here...</p>
       
-      <div id="owner-paypal-field-container" class="hidden" style="margin-bottom: 15px;">
-        <label style="font-size: 0.75rem; color: var(--text-muted);">PayPal Receiver Email:</label>
-        <input type="text" id="edit-paypal" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); color: white; border-radius: 6px; font-size: 0.85rem;">
+      <button class="footer-btn" style="margin-bottom: 10px; background: var(--bg-card);" onclick="toggleEditProfileMode()">✏️ Edit Profile Settings</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="footer-btn" style="background: #3a151b; border-color: #61232c; color: #ff8888;" onclick="logoutUser()">Log Out</button>
+        <button class="footer-btn" onclick="closeProfileModal()">Close</button>
       </div>
 
-      <button class="footer-btn" style="width: 100%; margin-bottom: 10px;" onclick="toggleEditProfileMode()">Edit Profile</button>
-      <button class="footer-btn" style="width: 100%; background: #ff4d4d; border: none;" onclick="logoutUser()">Log Out</button>
-
       <!-- Edit Section inside Modal -->
-      <div id="edit-profile-section" class="hidden" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-        <input type="text" id="edit-tag" placeholder="New Tag" style="width: 100%; padding: 8px; margin-bottom: 8px; background: var(--bg-main); border: 1px solid var(--border-color); color: white; border-radius: 6px; font-size: 0.85rem;">
-        <input type="text" id="edit-bio" placeholder="New Bio" style="width: 100%; padding: 8px; margin-bottom: 8px; background: var(--bg-main); border: 1px solid var(--border-color); color: white; border-radius: 6px; font-size: 0.85rem;">
-        <input type="file" id="edit-pfp-file" accept="image/*" style="width: 100%; margin-bottom: 10px; font-size: 0.75rem;">
-        <button class="footer-btn" style="width: 100%; background: var(--accent);" onclick="saveProfileChanges()">Save Changes</button>
+      <div id="edit-profile-section" class="hidden" style="margin-top: 18px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+        <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Tag / Handle</label>
+        <input type="text" id="edit-tag" class="auth-input" placeholder="New Tag">
+        <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Bio / Description</label>
+        <input type="text" id="edit-bio" class="auth-input" placeholder="New Bio">
+        <div id="owner-paypal-field-container" class="hidden">
+          <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">PayPal Email (Checkout Receiver)</label>
+          <input type="text" id="edit-paypal" class="auth-input" placeholder="paypal@email.com">
+        </div>
+        <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">New Profile Picture</label>
+        <input type="file" id="edit-pfp-file" accept="image/*" style="width: 100%; margin-bottom: 14px; font-size: 0.8rem; color: var(--text-muted);">
+        <button class="footer-btn" style="background: var(--accent);" onclick="saveProfileChanges()">Save Changes</button>
       </div>
     </div>
   </div>
 
   <!-- LEADERBOARD MODAL -->
-  <div id="leaderboard-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-    <div style="background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 25px; border-radius: 14px; width: 340px; position: relative;">
-      <span style="position: absolute; top: 15px; right: 15px; cursor: pointer;" onclick="closeLeaderboardModal()">✕</span>
+  <div id="leaderboard-modal" class="hidden modal-overlay">
+    <div class="modal-card" style="width: 340px;">
+      <span style="position: absolute; top: 15px; right: 18px; cursor: pointer; color: var(--text-muted);" onclick="closeLeaderboardModal()">✕</span>
       <h3>🏆 Trivia Leaderboard</h3>
-      <ul id="leaderboard-list" style="list-style: none; margin-top: 15px;"></ul>
+      <ul id="leaderboard-list" style="list-style: none; margin-top: 15px; font-size: 0.9rem;"></ul>
     </div>
   </div>
 
   <!-- TRIVIA MODAL -->
-  <div id="trivia-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-    <div style="background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 25px; border-radius: 14px; width: 360px; position: relative; text-align: center;">
-      <span style="position: absolute; top: 15px; right: 15px; cursor: pointer;" onclick="closeTriviaModal()">✕</span>
+  <div id="trivia-modal" class="hidden modal-overlay">
+    <div class="modal-card" style="width: 360px; text-align: center;">
+      <span style="position: absolute; top: 15px; right: 18px; cursor: pointer; color: var(--text-muted);" onclick="closeTriviaModal()">✕</span>
       <h3>🎮 Video Editing Trivia</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin: 15px 0;">Test your video editing software knowledge (After Effects, CapCut, Alight Motion, etc.)!</p>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin: 15px 0;">Test your video editing software knowledge!</p>
       <div id="trivia-question-box">
-        <p style="font-weight: 600; margin-bottom: 12px;">Which editing app is well known for keyframe graphing and velocity edits?</p>
+        <p style="font-weight: 600; margin-bottom: 14px; font-size: 0.9rem;">Which editing app is well known for keyframe graphing and velocity edits?</p>
         <div style="display: flex; flex-direction: column; gap: 8px;">
           <button class="footer-btn" onclick="alert('Correct! +10 points')">After Effects</button>
           <button class="footer-btn" onclick="alert('Incorrect!')">Notepad</button>
@@ -200,11 +210,11 @@
   </div>
 
   <!-- ANALYTICS MODAL -->
-  <div id="analytics-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-    <div style="background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 25px; border-radius: 14px; width: 320px; position: relative;">
-      <span style="position: absolute; top: 15px; right: 15px; cursor: pointer;" onclick="closeAnalytics()">✕</span>
+  <div id="analytics-modal" class="hidden modal-overlay">
+    <div class="modal-card" style="width: 320px;">
+      <span style="position: absolute; top: 15px; right: 18px; cursor: pointer; color: var(--text-muted);" onclick="closeAnalytics()">✕</span>
       <h3>📈 App Analytics</h3>
-      <ul style="list-style: none; margin-top: 15px; font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px;">
+      <ul style="list-style: none; margin-top: 15px; font-size: 0.9rem; display: flex; flex-direction: column; gap: 10px;">
         <li>Registered Users: <strong id="stat-registered">0</strong></li>
         <li>Active Online: <strong id="stat-online">0</strong></li>
         <li>Server Uptime: <strong id="stat-hours">0</strong> hrs</li>
@@ -214,16 +224,16 @@
   </div>
 
   <!-- POLL MODAL -->
-  <div id="poll-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-    <div style="background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 25px; border-radius: 14px; width: 320px; position: relative;">
-      <span style="position: absolute; top: 15px; right: 15px; cursor: pointer;" onclick="closePollModal()">✕</span>
+  <div id="poll-modal" class="hidden modal-overlay">
+    <div class="modal-card" style="width: 320px;">
+      <span style="position: absolute; top: 15px; right: 18px; cursor: pointer; color: var(--text-muted);" onclick="closePollModal()">✕</span>
       <h3>📊 Create Community Poll</h3>
-      <input type="text" placeholder="Ask a question..." style="width: 100%; padding: 10px; margin: 15px 0; background: var(--bg-main); border: 1px solid var(--border-color); color: white; border-radius: 6px;">
-      <button class="footer-btn" style="width: 100%; background: var(--accent);" onclick="closePollModal(); alert('Poll published!');">Publish Poll</button>
+      <input type="text" class="auth-input" placeholder="Ask a question..." style="margin: 15px 0 12px 0;">
+      <button class="footer-btn" style="background: var(--accent);" onclick="closePollModal(); alert('Poll published!');">Publish Poll</button>
     </div>
   </div>
 
-  <div id="notif-box" class="hidden" style="position: fixed; top: 70px; right: 20px; background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 15px; border-radius: 10px; width: 260px; z-index: 2000; font-size: 0.8rem;">
+  <div id="notif-box" class="hidden" style="position: fixed; top: 70px; right: 20px; background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; width: 260px; z-index: 2000; font-size: 0.8rem; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
     <strong>🔔 Notifications</strong>
     <p style="color: var(--text-muted); margin-top: 6px;">New PayPal payment received ($3.00) for Personal Edit!</p>
   </div>
