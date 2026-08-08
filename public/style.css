@@ -9,6 +9,7 @@
   --text-muted: #94a3b8;
 }
 
+/* Strict Reset to remove all default white backgrounds */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -24,10 +25,24 @@ body, html {
   overflow: hidden;
 }
 
+button, input {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
 .hidden {
   display: none !important;
 }
 
+/* App Structure */
 #app {
   display: flex;
   height: 100vh;
@@ -35,7 +50,7 @@ body, html {
   overflow: hidden;
 }
 
-/* Sidebar Layout */
+/* Sidebar Styling */
 .sidebar {
   width: 280px;
   background-color: var(--bg-sidebar);
@@ -57,18 +72,12 @@ body, html {
   border-bottom: 1px solid var(--border-color);
 }
 
-.avatar-circle {
+.sidebar-profile img {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  overflow: hidden;
-  flex-shrink: 0;
-  font-size: 1.1rem;
+  object-fit: cover;
+  background-color: var(--bg-card); /* Fallback if image fails */
 }
 
 .sidebar-nav {
@@ -78,8 +87,8 @@ body, html {
   gap: 4px;
 }
 
-.sidebar-nav h4, .sidebar-section h4 {
-  font-size: 0.7rem;
+.sidebar-nav h4 {
+  font-size: 0.75rem;
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.08em;
@@ -87,23 +96,21 @@ body, html {
   margin-top: 10px;
 }
 
-.nav-item, .user-item {
+.nav-item, .user-item, .sidebar-nav button {
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-muted);
   transition: all 0.2s;
   display: flex;
   align-items: center;
   gap: 10px;
-  background: transparent;
-  border: none;
   width: 100%;
   text-align: left;
 }
 
-.nav-item:hover, .user-item:hover {
+.nav-item:hover, .user-item:hover, .sidebar-nav button:hover {
   background: var(--bg-card);
   color: var(--text-main);
 }
@@ -116,7 +123,7 @@ body, html {
   border-top: 1px solid var(--border-color);
 }
 
-.footer-btn {
+.footer-btn, .sidebar-footer button {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-main);
@@ -131,14 +138,15 @@ body, html {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  width: 100%;
 }
 
-.footer-btn:hover {
+.footer-btn:hover, .sidebar-footer button:hover {
   background: rgba(138, 43, 226, 0.2);
   border-color: var(--accent);
 }
 
-/* Main Content Layout */
+/* Main Content Styling */
 .main-content {
   flex: 1;
   display: flex;
@@ -164,8 +172,12 @@ body, html {
   gap: 15px;
 }
 
-.menu-toggle-btn {
-  display: none;
+.chat-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.header-action-btn, .menu-toggle-btn, .chat-header button {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-main);
@@ -173,21 +185,7 @@ body, html {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-}
-
-.chat-header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.header-action-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -218,7 +216,6 @@ body, html {
   padding: 12px 18px;
   border-radius: 10px;
   color: var(--text-main);
-  outline: none;
   font-size: 0.95rem;
 }
 
@@ -226,9 +223,8 @@ body, html {
   border-color: var(--accent);
 }
 
-.chat-input-area button.send-btn {
+.chat-input-area button, .send-btn {
   background: var(--accent);
-  border: none;
   color: white;
   padding: 12px 24px;
   border-radius: 10px;
@@ -237,32 +233,25 @@ body, html {
   transition: background 0.2s;
 }
 
-.chat-input-area button.send-btn:hover {
+.chat-input-area button:hover, .send-btn:hover {
   background: var(--accent-light);
 }
 
-/* Responsive Mobile Layout Fixes */
+/* Mobile Layout Fixes */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
     top: 0;
-    left: 0;
+    left: -100%;
     width: 85% !important;
     max-width: 320px;
     height: 100vh;
-    transform: translateX(-100%);
     box-shadow: 6px 0 30px rgba(0, 0, 0, 0.8);
-    transition: transform 0.3s ease-in-out;
+    transition: left 0.3s ease-in-out;
   }
 
   .sidebar.mobile-open {
-    transform: translateX(0);
-  }
-
-  .menu-toggle-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    left: 0;
   }
 
   .main-content {
