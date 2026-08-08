@@ -206,11 +206,13 @@ function switchRoom(roomName) {
     document.getElementById('room-desc').innerText = 'Support the creator and order custom personal edits';
     document.getElementById('chat-active-area').classList.add('hidden');
     document.getElementById('support-section-view').classList.remove('hidden');
+    document.getElementById('sidebar-menu').classList.remove('mobile-open');
     return;
   }
 
   document.getElementById('chat-active-area').classList.remove('hidden');
   document.getElementById('support-section-view').classList.add('hidden');
+  document.getElementById('sidebar-menu').classList.remove('mobile-open');
   loadChatHistory(currentRoom);
 }
 
@@ -221,6 +223,7 @@ function openDirectMessage(recipientUsername) {
   document.getElementById('room-desc').innerText = `Private secure messaging thread`;
   document.getElementById('chat-active-area').classList.remove('hidden');
   document.getElementById('support-section-view').classList.add('hidden');
+  document.getElementById('sidebar-menu').classList.remove('mobile-open');
   loadChatHistory(currentRoom);
 }
 
