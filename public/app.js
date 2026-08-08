@@ -37,7 +37,6 @@ function openRecoveryScreen() {
   document.getElementById('recovery-form').classList.remove('hidden');
 }
 
-// LOGIN SUBMISSION
 const loginFormEl = document.getElementById('login-form');
 if (loginFormEl) {
   loginFormEl.addEventListener('submit', (e) => {
@@ -53,7 +52,6 @@ if (loginFormEl) {
   });
 }
 
-// SIGNUP SUBMISSION
 const signupFormEl = document.getElementById('signup-form');
 if (signupFormEl) {
   signupFormEl.addEventListener('submit', async (e) => {
@@ -77,7 +75,6 @@ if (signupFormEl) {
   });
 }
 
-// AUTH SUCCESS
 socket.on('auth:success', (user) => {
   currentUser = user;
 
@@ -307,7 +304,6 @@ socket.on('chat:refresh', () => {
   loadRoomContent();
 });
 
-// POLL CREATION
 function openPollModal() {
   document.getElementById('poll-modal').classList.remove('hidden');
 }
@@ -338,7 +334,6 @@ function submitNewPoll() {
   closePollModal();
 }
 
-// PROFILE & PAYMENTS
 function openMyProfile() {
   document.getElementById('profile-modal').classList.remove('hidden');
   document.getElementById('modal-username').textContent = currentUser.username;
@@ -355,8 +350,20 @@ function openMyProfile() {
 
   document.getElementById('edit-tag').value = currentUser.tag;
   document.getElementById('edit-bio').value = currentUser.bio;
-  document.getElementById('edit-paypal').value = currentUser.paypalEmail || '';
   document.getElementById('edit-profile-section').classList.add('hidden');
+
+  const isOwnerUser = currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner');
+  const supportSec = document.getElementById('owner-support-section');
+  const paypalFieldContainer = document.getElementById('owner-paypal-field-container');
+
+  if (isOwnerUser) {
+    if (supportSec) supportSec.classList.remove('hidden');
+    if (paypalFieldContainer) paypalFieldContainer.classList.remove('hidden');
+    document.getElementById('edit-paypal').value = currentUser.paypalEmail || '';
+  } else {
+    if (supportSec) supportSec.classList.add('hidden');
+    if (paypalFieldContainer) paypalFieldContainer.classList.add('hidden');
+  }
 }
 
 function closeProfileModal() {
@@ -371,7 +378,8 @@ function toggleEditProfileMode() {
 async function saveProfileChanges() {
   const newTag = document.getElementById('edit-tag').value.trim();
   const newBio = document.getElementById('edit-bio').value.trim();
-  const newPaypal = document.getElementById('edit-paypal').value.trim();
+  const isOwnerUser = currentUser.username.toLowerCase() === 'starediter1' || currentUser.role.includes('Owner');
+  const newPaypal = isOwnerUser ? document.getElementById('edit-paypal').value.trim() : currentUser.paypalEmail;
   const fileInput = document.getElementById('edit-pfp-file');
 
   let newPfp = currentUser.pfp;
@@ -418,16 +426,19 @@ function processPayment(type) {
     itemName = 'TikTok Edit ($3 USD)';
   }
 
-  alert(`Redirecting to PayPal for $${amount}. After payment, you will be directed to @starediter1's chat!`);
-  const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(paypalEmail)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD`;
-  window.open(paypalUrl, '_blank');
+  socket.emit('payment:completed', { type, amount, itemName }, () => {
+    alert(`Payment confirmed! Redirecting to PayPal for $${amount} and opening direct chat with @starediter1.`);
+    const paypalUrl = `https://www.paypal.com/cgi-bin/websc?cmd=_xclick&business=${encodeURIComponent(paypalEmail)}&item_name=${encodeURIComponent(itemName)}&amount=${amount}&currency_code=USD`;
+    window.open(paypalUrl, '_blank');
+    closeProfileModal();
+    switchRoom('creator');
+  });
 }
 
 function logoutUser() {
   location.reload();
 }
 
-// LEADERBOARD
 function openLeaderboardModal() {
   document.getElementById('leaderboard-modal').classList.remove('hidden');
   socket.emit('leaderboard:fetch', (list) => {
@@ -449,7 +460,6 @@ function closeLeaderboardModal() {
   document.getElementById('leaderboard-modal').classList.add('hidden');
 }
 
-// TRIVIA ARCADE
 let currentSelectedApp = 'After Effects';
 let currentTriviaQuestion = null;
 let selectedAnswerIndex = null;
@@ -579,7 +589,6 @@ function resetTriviaScore() {
   });
 }
 
-// ASSET VAULT
 function openAssetsModal() {
   document.getElementById('assets-modal').classList.remove('hidden');
   fetchAssets();
@@ -650,7 +659,6 @@ async function uploadAssetToVault() {
   fileInput.value = '';
 }
 
-// ANALYTICS & NOTIFICATIONS
 function openAnalytics() {
   document.getElementById('analytics-modal').classList.remove('hidden');
   socket.emit('analytics:fetch', (data) => {

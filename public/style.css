@@ -26,7 +26,6 @@ body {
   display: none !important;
 }
 
-/* Glassmorphism Effect */
 .glass-box {
   background: var(--panel-bg);
   backdrop-filter: blur(12px);
@@ -35,7 +34,6 @@ body {
   border-radius: 12px;
 }
 
-/* Auth Overlay Layout */
 .auth-overlay {
   position: fixed;
   top: 0;
@@ -84,7 +82,6 @@ body {
   box-shadow: 0 0 8px rgba(192, 132, 252, 0.3);
 }
 
-/* Buttons */
 .btn-primary {
   background: linear-gradient(135deg, var(--accent), #7928ca);
   color: white;
@@ -116,18 +113,49 @@ body {
   border-color: var(--accent-light);
 }
 
-/* Main App Layout */
 .app-container {
   display: flex;
   width: 100vw;
   height: 100vh;
-  padding: 15px;
-  gap: 15px;
+  padding: 10px;
+  gap: 10px;
+  overflow: hidden;
 }
 
-/* Sidebar */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+    padding: 6px;
+    gap: 6px;
+  }
+  .sidebar {
+    width: 100% !important;
+    height: auto;
+    max-height: 140px;
+    padding: 8px !important;
+    overflow-y: auto;
+  }
+  .sidebar-footer {
+    display: flex;
+    gap: 5px;
+    padding-top: 6px !important;
+  }
+  .sidebar-footer button {
+    font-size: 0.65rem !important;
+    padding: 4px 6px !important;
+  }
+  .sidebar-header {
+    margin-bottom: 6px !important;
+    padding-bottom: 6px !important;
+  }
+  .nav-section {
+    display: none;
+  }
+}
+
 .sidebar {
   width: 280px;
+  min-width: 280px;
   display: flex;
   flex-direction: column;
   padding: 15px;
@@ -188,7 +216,7 @@ body {
 
 .user-list {
   list-style: none;
-  max-height: 150px;
+  max-height: 120px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -199,7 +227,6 @@ body {
   padding-top: 12px;
 }
 
-/* Chat Main Area */
 .chat-main {
   flex: 1;
   display: flex;
@@ -236,7 +263,7 @@ body {
 }
 
 .msg-bubble {
-  max-width: 70%;
+  max-width: 80%;
   padding: 10px 14px;
   font-size: 0.85rem;
   word-break: break-word;
@@ -249,7 +276,6 @@ body {
   border-top: 1px solid var(--border-color);
 }
 
-/* Modals */
 .modal {
   position: fixed;
   top: 0;

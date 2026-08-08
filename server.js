@@ -234,7 +234,9 @@ io.on('connection', (socket) => {
     if (db.registeredUsers[cleanKey]) {
       if (tag) db.registeredUsers[cleanKey].tag = tag;
       if (bio) db.registeredUsers[cleanKey].bio = bio;
-      if (paypalEmail) db.registeredUsers[cleanKey].paypalEmail = paypalEmail;
+      if (paypalEmail && (cleanKey === OWNER_USERNAME)) {
+        db.registeredUsers[cleanKey].paypalEmail = paypalEmail;
+      }
       if (pfp !== undefined) db.registeredUsers[cleanKey].pfp = pfp;
       saveDB();
 
@@ -287,6 +289,37 @@ io.on('connection', (socket) => {
     }));
     usersList.sort((a, b) => b.score - a.score);
     if (typeof callback === 'function') callback(usersList);
+  });
+
+  socket.on('payment:completed', ({ type, amount, itemName }, callback) => {
+    const user = activeSockets[socket.id];
+    if (!user) return;
+
+    db.analytics.totalRevenue = (db.analytics.totalRevenue || 0) + amount;
+    
+    const notifText = `💰 @${user.username} purchased "${itemName}" ($${amount} USD)!`;
+    db.notifications.unshift({ id: Date.now(), text: notifText, timestamp: new Date().toLocaleTimeString() });
+
+    const threadKey = [user.username.toLowerCase(), OWNER_USERNAME].sort().join('_');
+    const autoMsg = {
+      id: 'msg-' + Date.now(),
+      sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
+      targetRoom: 'creator', text: `Hi! I just purchased a "${itemName}" for $${amount}. Let's get started!`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    if (!db.privateDMs[threadKey]) db.privateDMs[threadKey] = [];
+    db.privateDMs[threadKey].push(autoMsg);
+
+    saveDB();
+
+    io.sockets.sockets.forEach(s => {
+      const client = activeSockets[s.id];
+      if (client && (client.username.toLowerCase() === OWNER_USERNAME || client.username.toLowerCase() === user.username.toLowerCase())) {
+        s.emit('chat:message', { ...autoMsg, room: 'creator' });
+      }
+    });
+
+    if (typeof callback === 'function') callback({ success: true });
   });
 
   socket.on('chat:send', (data) => {
