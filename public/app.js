@@ -221,10 +221,8 @@ socket.on('chat:refresh', () => {
 function switchRoom(roomName) {
   currentRoom = roomName;
   
-  // Reset visibility of views
   document.getElementById('chat-active-area').classList.add('hidden');
   document.getElementById('support-section-view').classList.add('hidden');
-  document.getElementById('download-section-view').classList.add('hidden');
 
   if (roomName === 'global') {
     document.getElementById('room-title').innerText = '🌐 Community Lounge';
@@ -238,14 +236,10 @@ function switchRoom(roomName) {
     document.getElementById('room-title').innerText = '💖 Donations & Edits';
     document.getElementById('room-desc').innerText = 'Support the creator and order custom personal edits';
     document.getElementById('support-section-view').classList.remove('hidden');
-  } else if (roomName === 'download-hub') {
-    document.getElementById('room-title').innerText = '📱 Download Android App';
-    document.getElementById('room-desc').innerText = 'Install StarFam directly on your Android device for free';
-    document.getElementById('download-section-view').classList.remove('hidden');
   }
 
   document.getElementById('sidebar-menu').classList.remove('mobile-open');
-  if (roomName !== 'support-hub' && roomName !== 'download-hub') {
+  if (roomName !== 'support-hub') {
     loadChatHistory(currentRoom);
   }
 }
@@ -258,7 +252,6 @@ function openDirectMessage(recipientUsername) {
   
   document.getElementById('chat-active-area').classList.remove('hidden');
   document.getElementById('support-section-view').classList.add('hidden');
-  document.getElementById('download-section-view').classList.add('hidden');
   document.getElementById('sidebar-menu').classList.remove('mobile-open');
   
   loadChatHistory(currentRoom);
