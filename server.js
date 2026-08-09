@@ -1,354 +1,406 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { MongoClient } = require('mongodb');
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
-const DB_NAME = 'star_fam';
-const OWNER_USERNAME = 'starediter1';
-
-app.use(express.static(path.join(__dirname, 'public')));
+// Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-const uploadDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Serve static files from public folder
+app.use(express.static(path.join(__dirname, 'public')));
 
+// Explicit route for APK download
+app.get('/starfam.apk', (req, res) => {
+    const apkPath = path.join(__dirname, 'public', 'starfam.apk');
+    if (fs.existsSync(apkPath)) {
+        res.download(apkPath, 'starfam.apk');
+    } else {
+        res.status(404).send('APK file not found on server.');
+    }
+});
+
+// Multer storage for media and profile uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
 });
 const upload = multer({ storage });
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  res.json({
-    url: `/uploads/${req.file.filename}`,
-    originalName: req.file.originalname,
-    size: (req.file.size / (1024 * 1024)).toFixed(2) + ' MB'
-  });
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    res.json({
+        url: `/uploads/${req.file.filename}`,
+        originalName: req.file.originalname,
+        size: `${(req.file.size / 1024).toFixed(1)} KB`
+    });
 });
 
-let db;
-MongoClient.connect(MONGO_URI)
-  .then(client => {
-    db = client.db(DB_NAME);
-    console.log('Connected to MongoDB database');
-  })
-  .catch(err => console.error('MongoDB connection error:', err));
+// MongoDB Connection
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/starfam';
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
-const activeSockets = {};
+// Schemas & Models
+const userSchema = new mongoose.Schema({
+    username: { type: String, unique: true, required: true },
+    pin: { type: String, required: true },
+    tag: { type: String, default: '' },
+    bio: { type: String, default: '' },
+    pfp: { type: String, default: '' },
+    role: { type: String, default: 'Editor' },
+    score: { type: Number, default: 0 },
+    paypalEmail: { type: String, default: 'starediter1@gmail.com' }
+});
+const User = mongoose.model('User', userSchema);
+
+const messageSchema = new mongoose.Schema({
+    room: { type: String, required: true },
+    sender: { type: String, required: true },
+    tag: { type: String, default: '' },
+    pfp: { type: String, default: '' },
+    text: { type: String, default: '' },
+    mediaUrl: { type: String, default: null },
+    mediaType: { type: String, default: null },
+    isSticker: { type: Boolean, default: false },
+    timestamp: { type: String, default: () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+});
+const Message = mongoose.model('Message', messageSchema);
+
+const pollSchema = new mongoose.Schema({
+    targetRoom: { type: String, required: true },
+    sender: { type: String, required: true },
+    question: { type: String, required: true },
+    options: [String],
+    votes: [[String]] // Array of user arrays per option index
+});
+const Poll = mongoose.model('Poll', pollSchema);
+
+const analyticsSchema = new mongoose.Schema({
+    hoursUsed: { type: Number, default: 124 },
+    completedRevenue: { type: Number, default: 0 }
+});
+const Analytics = mongoose.model('Analytics', analyticsSchema);
+
+// Active Online Users tracking
+let activeUsers = new Map(); // socket.id -> user object
 
 io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
+    console.log('New client connected:', socket.id);
 
-  socket.on('auth:login', async ({ identifier, pin }, callback) => {
-    if (!db) return callback({ success: false, message: 'Database connecting...' });
-    const usersCol = db.collection('users');
-    const user = await usersCol.findOne({
-      $or: [{ username: new RegExp(`^${identifier}$`, 'i') }, { tag: new RegExp(`^${identifier}$`, 'i') }]
-    });
+    socket.on('auth:login', async ({ identifier, pin }, callback) => {
+        try {
+            const cleanId = identifier.trim().toLowerCase();
+            const user = await User.findOne({
+                $or: [
+                    { username: { $regex: new RegExp(`^${cleanId}$`, 'i') } },
+                    { tag: { $regex: new RegExp(`^${cleanId}$`, 'i') } }
+                ]
+            });
 
-    if (!user || user.pin !== pin) {
-      return callback({ success: false, message: 'Invalid credentials or PIN.' });
-    }
+            if (!user || user.pin !== pin) {
+                return callback({ success: false, message: 'Invalid credentials or security PIN.' });
+            }
 
-    activeSockets[socket.id] = user;
-    socket.join('global');
-    io.emit('users:update', Object.values(activeSockets));
-    callback({ success: true });
-    socket.emit('auth:success', user);
-  });
-
-  socket.on('auth:signup', async ({ username, pin, tag, bio, pfp }, callback) => {
-    if (!db) return callback({ success: false, message: 'Database connecting...' });
-    const usersCol = db.collection('users');
-    const existing = await usersCol.findOne({ username: new RegExp(`^${username}$`, 'i') });
-    if (existing) {
-      return callback({ success: false, message: 'Username is already taken.' });
-    }
-
-    const isOwner = username.toLowerCase() === OWNER_USERNAME;
-    const newUser = {
-      username,
-      pin,
-      tag: tag || `@${username}`,
-      bio: bio || 'VFX Motion Editor',
-      role: isOwner ? '👑 Owner & Creator' : 'Editor',
-      pfp: pfp || null,
-      isOwner
-    };
-
-    await usersCol.insertOne(newUser);
-    activeSockets[socket.id] = newUser;
-    socket.join('global');
-    io.emit('users:update', Object.values(activeSockets));
-    callback({ success: true });
-    socket.emit('auth:success', newUser);
-  });
-
-  socket.on('auth:recover', async ({ identifier, recoveryCode, newPin }, callback) => {
-    if (recoveryCode !== '1111') {
-      return callback({ success: false, message: 'Invalid recovery code. Enter 1111.' });
-    }
-    const usersCol = db.collection('users');
-    const user = await usersCol.findOne({
-      $or: [{ username: new RegExp(`^${identifier}$`, 'i') }, { tag: new RegExp(`^${identifier}$`, 'i') }]
-    });
-    if (!user) {
-      return callback({ success: false, message: 'User not found.' });
-    }
-    await usersCol.updateOne({ _id: user._id }, { $set: { pin: newPin } });
-    callback({ success: true, message: 'PIN successfully reset! Please log in.' });
-  });
-
-  socket.on('chat:fetch_history', async ({ room }, callback) => {
-    if (!db) return callback([]);
-    const cleanRoom = room.toLowerCase();
-    if (cleanRoom === 'global' || cleanRoom === 'editing-comp') {
-      const chatCol = db.collection('chatHistory');
-      const doc = await chatCol.findOne({ room: cleanRoom });
-      callback(doc ? doc.messages : []);
-    } else if (cleanRoom.startsWith('dm-')) {
-      const user = activeSockets[socket.id];
-      if (!user) return callback([]);
-      const recipientLower = cleanRoom.replace('dm-', '');
-      const threadKey = [user.username.toLowerCase(), recipientLower].sort().join('_');
-      const dmsCol = db.collection('privateDMs');
-      const doc = await dmsCol.findOne({ threadKey });
-      callback(doc ? doc.messages : []);
-    } else {
-      callback([]);
-    }
-  });
-
-  socket.on('chat:send', async (data) => {
-    if (!db) return;
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    const cleanSenderLower = user.username.toLowerCase();
-    const targetRoom = data.targetRoom.toLowerCase();
-
-    const payload = {
-      id: 'msg-' + Date.now() + '-' + Math.round(Math.random()*1000),
-      sender: user.username, tag: user.tag, role: user.role, pfp: user.pfp,
-      targetRoom: targetRoom, text: data.text || '', mediaUrl: data.mediaUrl || null, mediaType: data.mediaType || null,
-      isSticker: data.isSticker || false,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    const chatCol = db.collection('chatHistory');
-
-    if (targetRoom === 'global' || targetRoom === 'editing-comp') {
-      await chatCol.updateOne({ room: targetRoom }, { $push: { messages: payload } }, { upsert: true });
-      io.emit('chat:message', { ...payload, room: targetRoom });
-    } else if (targetRoom.startsWith('dm-')) {
-      const recipientLower = targetRoom.replace('dm-', '');
-      const threadKey = [cleanSenderLower, recipientLower].sort().join('_');
-      const dmsCol = db.collection('privateDMs');
-      await dmsCol.updateOne({ threadKey }, { $push: { messages: payload } }, { upsert: true });
-      
-      io.sockets.sockets.forEach(s => {
-        const client = activeSockets[s.id];
-        if (client && (client.username.toLowerCase() === cleanSenderLower || client.username.toLowerCase() === recipientLower)) {
-          s.emit('chat:message', { ...payload, room: targetRoom, targetRoom: targetRoom });
+            activeUsers.set(socket.id, user);
+            socket.join('global');
+            socket.emit('auth:success', user);
+            broadcastActiveUsers();
+            callback({ success: true });
+        } catch (err) {
+            callback({ success: false, message: 'Server login error.' });
         }
-      });
-    }
-  });
-
-  socket.on('chat:delete', async ({ msgId, room }) => {
-    if (!db) return;
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    const isOwnerUser = user.isOwner || user.username.toLowerCase() === OWNER_USERNAME;
-    const cleanRoom = room.toLowerCase();
-
-    const chatCol = db.collection('chatHistory');
-    const dmsCol = db.collection('privateDMs');
-
-    if (cleanRoom === 'global' || cleanRoom === 'editing-comp') {
-      const chatDoc = await chatCol.findOne({ room: cleanRoom });
-      if (chatDoc && chatDoc.messages) {
-        const msg = chatDoc.messages.find(m => m.id === msgId);
-        if (msg && (msg.sender.toLowerCase() === user.username.toLowerCase() || isOwnerUser)) {
-          await chatCol.updateOne({ room: cleanRoom }, { $pull: { messages: { id: msgId } } });
-          io.emit('chat:refresh', { room: cleanRoom });
-        }
-      }
-    } else {
-      const dmsDocs = await dmsCol.find({}).toArray();
-      for (let doc of dmsDocs) {
-        if (doc.messages) {
-          const msg = doc.messages.find(m => m.id === msgId);
-          if (msg && (msg.sender.toLowerCase() === user.username.toLowerCase() || isOwnerUser)) {
-            await dmsCol.updateOne({ threadKey: doc.threadKey }, { $pull: { messages: { id: msgId } } });
-            io.emit('chat:refresh', cleanRoom);
-          }
-        }
-      }
-    }
-  });
-
-  socket.on('poll:create', async (data) => {
-    if (!db) return;
-    const user = activeSockets[socket.id];
-    if (!user) return;
-
-    const pollPayload = {
-      id: 'poll-' + Date.now() + '-' + Math.round(Math.random()*1000),
-      sender: user.username,
-      senderLower: user.username.toLowerCase(),
-      question: data.question,
-      options: data.options,
-      votes: data.options.map(() => []),
-      targetRoom: data.targetRoom.toLowerCase(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    const chatCol = db.collection('chatHistory');
-    const targetRoom = data.targetRoom.toLowerCase();
-
-    if (targetRoom === 'global' || targetRoom === 'editing-comp') {
-      await chatCol.updateOne({ room: targetRoom }, { $push: { messages: pollPayload } }, { upsert: true });
-      io.emit('poll:new', pollPayload);
-    }
-  });
-
-  socket.on('poll:vote', async ({ pollId, optionIndex, room }) => {
-    if (!db) return;
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    const cleanRoom = room.toLowerCase();
-
-    const chatCol = db.collection('chatHistory');
-    const doc = await chatCol.findOne({ room: cleanRoom });
-    if (!doc || !doc.messages) return;
-
-    const poll = doc.messages.find(m => m.id === pollId);
-    if (!poll) return;
-
-    poll.votes.forEach(voteList => {
-      const index = voteList.indexOf(user.username);
-      if (index > -1) voteList.splice(index, 1);
     });
 
-    if (poll.votes[optionIndex]) {
-      poll.votes[optionIndex].push(user.username);
-    }
+    socket.on('auth:signup', async ({ username, pin, tag, bio, pfp }, callback) => {
+        try {
+            const existing = await User.findOne({ username: username.trim() });
+            if (existing) {
+                return callback({ success: false, message: 'Username already taken.' });
+            }
 
-    await chatCol.updateOne({ room: cleanRoom, "messages.id": pollId }, { $set: { "messages.$": poll } });
-    io.emit('chat:refresh', { room: cleanRoom });
-  });
+            const newUser = new User({
+                username: username.trim(),
+                pin: pin.trim(),
+                tag: tag ? tag.trim() : `@${username.trim()}`,
+                bio: bio ? bio.trim() : 'VFX Motion Editor',
+                pfp: pfp || '',
+                role: username.toLowerCase() === 'starediter1' ? 'Owner / Developer' : 'Editor'
+            });
 
-  socket.on('poll:delete', async ({ pollId, room }) => {
-    if (!db) return;
-    const user = activeSockets[socket.id];
-    if (!user) return;
-
-    const isOwnerUser = user.isOwner || user.username.toLowerCase() === OWNER_USERNAME;
-    const cleanRoom = room.toLowerCase();
-    const chatCol = db.collection('chatHistory');
-
-    const doc = await chatCol.findOne({ room: cleanRoom });
-    if (!doc || !doc.messages) return;
-
-    const poll = doc.messages.find(m => m.id === pollId);
-    if (!poll) return;
-
-    const isAuthor = poll.senderLower === user.username.toLowerCase();
-    if (isAuthor || isOwnerUser) {
-      await chatCol.updateOne({ room: cleanRoom }, { $pull: { messages: { id: pollId } } });
-      io.emit('chat:refresh', { room: cleanRoom });
-    }
-  });
-
-  socket.on('dms:fetch_list', async (callback) => {
-    if (!db) return callback([]);
-    const usersCol = db.collection('users');
-    const users = await usersCol.find({}, { projection: { username: 1, tag: 1, pfp: 1 } }).toArray();
-    callback(users);
-  });
-
-  socket.on('profile:update', async (data, callback) => {
-    if (!db) return;
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    const usersCol = db.collection('users');
-    const updateFields = { tag: data.tag, bio: data.bio };
-    if (data.pfp !== undefined) updateFields.pfp = data.pfp;
-    if (data.paypalEmail && user.username.toLowerCase() === OWNER_USERNAME) {
-      updateFields.paypalEmail = data.paypalEmail;
-    }
-    await usersCol.updateOne({ username: user.username }, { $set: updateFields });
-    Object.assign(user, updateFields);
-    callback();
-  });
-
-  socket.on('trivia:submit', async ({ points }, callback) => {
-    if (!db) return;
-    const user = activeSockets[socket.id];
-    if (!user) return;
-    const triviaCol = db.collection('triviaScores');
-    
-    await triviaCol.updateOne(
-      { username: user.username },
-      { $inc: { score: points }, $set: { tag: user.tag } },
-      { upsert: true }
-    );
-
-    const list = await triviaCol.find({}).sort({ score: -1 }).limit(10).toArray();
-    io.emit('leaderboard:update', list);
-    callback({ success: true });
-  });
-
-  socket.on('leaderboard:fetch', async (callback) => {
-    if (!db) return callback([]);
-    const triviaCol = db.collection('triviaScores');
-    const list = await triviaCol.find({}).sort({ score: -1 }).limit(10).toArray();
-    callback(list);
-  });
-
-  socket.on('analytics:fetch', async (callback) => {
-    if (!db) return callback({});
-    const usersCol = db.collection('users');
-    const revCol = db.collection('revenueLogs');
-    const count = await usersCol.countDocuments();
-    
-    const revDocs = await revCol.find({}).toArray();
-    const totalRev = revDocs.reduce((acc, curr) => acc + curr.amount, 0);
-
-    callback({
-      registeredCount: count,
-      activeOnline: Object.keys(activeSockets).length,
-      hoursUsed: (process.uptime() / 3600).toFixed(2),
-      revenue: `$${totalRev.toFixed(2)}`
+            await newUser.save();
+            activeUsers.set(socket.id, newUser);
+            socket.join('global');
+            socket.emit('auth:success', newUser);
+            broadcastActiveUsers();
+            callback({ success: true });
+        } catch (err) {
+            callback({ success: false, message: 'Server registration error.' });
+        }
     });
-  });
 
-  socket.on('owner:paypal:fetch', async (callback) => {
-    if (!db) return callback({});
-    const usersCol = db.collection('users');
-    const owner = await usersCol.findOne({ username: OWNER_USERNAME });
-    callback({ paypalEmail: owner ? owner.paypalEmail : 'starediter1@gmail.com' });
-  });
+    socket.on('auth:recover', async ({ identifier, code, newPin }, callback) => {
+        if (code !== '1111') {
+            return callback({ success: false, message: 'Incorrect master recovery code.' });
+        }
+        try {
+            const cleanId = identifier.trim().toLowerCase();
+            const user = await User.findOne({
+                $or: [
+                    { username: { $regex: new RegExp(`^${cleanId}$`, 'i') } },
+                    { tag: { $regex: new RegExp(`^${cleanId}$`, 'i') } }
+                ]
+            });
+            if (!user) {
+                return callback({ success: false, message: 'User not found.' });
+            }
+            user.pin = newPin.trim();
+            await user.save();
+            callback({ success: true });
+        } catch (err) {
+            callback({ success: false, message: 'Recovery error.' });
+        }
+    });
 
-  socket.on('disconnect', () => {
-    delete activeSockets[socket.id];
-    io.emit('users:update', Object.values(activeSockets));
-    console.log('Client disconnected:', socket.id);
-  });
+    socket.on('chat:fetch_history', async ({ room }, callback) => {
+        try {
+            let messages = [];
+            if (room.startsWith('dm-')) {
+                messages = await Message.find({ room }).sort({ _id: 1 }).limit(50);
+                const polls = await Poll.find({ targetRoom: room });
+                messages = [...messages, ...polls].sort((a, b) => a._id - b._id);
+            } else {
+                messages = await Message.find({ room }).sort({ _id: 1 }).limit(50);
+                const polls = await Poll.find({ targetRoom: room });
+                messages = [...messages, ...polls].sort((a, b) => a._id - b._id);
+            }
+            callback(messages);
+        } catch (err) {
+            callback([]);
+        }
+    });
+
+    socket.on('chat:send', async (data) => {
+        try {
+            const user = activeUsers.get(socket.id);
+            if (!user) return;
+
+            const newMsg = new Message({
+                room: data.targetRoom,
+                sender: user.username,
+                tag: user.tag,
+                pfp: user.pfp,
+                text: data.text || '',
+                mediaUrl: data.mediaUrl || null,
+                mediaType: data.mediaType || null,
+                isSticker: data.isSticker || false
+            });
+
+            await newMsg.save();
+            io.to(data.targetRoom).emit('chat:message', newMsg);
+            
+            // If it's a DM, make sure both parties receive it if joined
+            if (data.targetRoom.startsWith('dm-')) {
+                io.emit('chat:refresh');
+            }
+        } catch (err) {
+            console.error('Error sending message:', err);
+        }
+    });
+
+    socket.on('chat:delete', async ({ msgId, room }) => {
+        try {
+            const user = activeUsers.get(socket.id);
+            if (!user) return;
+            const msg = await Message.findById(msgId);
+            if (!msg) return;
+
+            if (msg.sender.toLowerCase() === user.username.toLowerCase() || user.role.includes('Owner') || user.username.toLowerCase() === 'starediter1') {
+                await Message.findByIdAndDelete(msgId);
+                io.to(room).emit('chat:refresh');
+            }
+        } catch (err) {
+            console.error('Error deleting message:', err);
+        }
+    });
+
+    socket.on('poll:create', async (data) => {
+        try {
+            const user = activeUsers.get(socket.id);
+            if (!user) return;
+
+            const newPoll = new Poll({
+                targetRoom: data.targetRoom,
+                sender: user.username,
+                question: data.question,
+                options: data.options,
+                votes: data.options.map(() => [])
+            });
+
+            await newPoll.save();
+            io.to(data.targetRoom).emit('poll:new', newPoll);
+        } catch (err) {
+            console.error('Error creating poll:', err);
+        }
+    });
+
+    socket.on('poll:vote', async ({ pollId, optionIndex, room }) => {
+        try {
+            const user = activeUsers.get(socket.id);
+            if (!user) return;
+            const poll = await Poll.findById(pollId);
+            if (!poll) return;
+
+            // Remove previous vote by this user across options
+            poll.votes.forEach((votedArr) => {
+                const idx = votedArr.indexOf(user.username);
+                if (idx !== -1) votedArr.splice(idx, 1);
+            });
+
+            if (poll.votes[optionIndex]) {
+                poll.votes[optionIndex].push(user.username);
+                await poll.save();
+                io.to(room).emit('chat:refresh');
+            }
+        } catch (err) {
+            console.error('Error voting poll:', err);
+        }
+    });
+
+    socket.on('poll:delete', async ({ pollId, room }) => {
+        try {
+            const user = activeUsers.get(socket.id);
+            if (!user) return;
+            const poll = await Poll.findById(pollId);
+            if (!poll) return;
+
+            if (poll.sender.toLowerCase() === user.username.toLowerCase() || user.role.includes('Owner') || user.username.toLowerCase() === 'starediter1') {
+                await Poll.findByIdAndDelete(pollId);
+                io.to(room).emit('chat:refresh');
+            }
+        } catch (err) {
+            console.error('Error deleting poll:', err);
+        }
+    });
+
+    socket.on('trivia:submit', async ({ points }, callback) => {
+        try {
+            const user = activeUsers.get(socket.id);
+            if (!user) return;
+            user.score += points;
+            await User.findByIdAndUpdate(user._id, { score: user.score });
+            broadcastLeaderboard();
+            callback();
+        } catch (err) {
+            console.error('Error submitting trivia:', err);
+        }
+    });
+
+    socket.on('leaderboard:fetch', async (callback) => {
+        try {
+            const topUsers = await User.find().sort({ score: -1 }).limit(10);
+            callback(topUsers);
+        } catch (err) {
+            callback([]);
+        }
+    });
+
+    socket.on('dms:fetch_list', async (callback) => {
+        try {
+            const allUsers = await User.find({}, 'username tag pfp role');
+            callback(allUsers);
+        } catch (err) {
+            callback([]);
+        }
+    });
+
+    socket.on('profile:update', async (data, callback) => {
+        try {
+            const user = activeUsers.get(socket.id);
+            if (!user) return;
+
+            if (data.tag !== undefined) user.tag = data.tag;
+            if (data.bio !== undefined) user.bio = data.bio;
+            if (data.paypalEmail !== undefined) user.paypalEmail = data.paypalEmail;
+            if (data.pfp !== undefined) user.pfp = data.pfp;
+
+            await User.findByIdAndUpdate(user._id, {
+                tag: user.tag,
+                bio: user.bio,
+                paypalEmail: user.paypalEmail,
+                pfp: user.pfp
+            });
+
+            callback();
+        } catch (err) {
+            console.error('Error updating profile:', err);
+        }
+    });
+
+    socket.on('owner:paypal:fetch', async (callback) => {
+        try {
+            const owner = await User.findOne({ username: 'starediter1' });
+            callback({ paypalEmail: owner ? owner.paypalEmail : 'starediter1@gmail.com' });
+        } catch (err) {
+            callback({ paypalEmail: 'starediter1@gmail.com' });
+        }
+    });
+
+    socket.on('analytics:fetch', async (callback) => {
+        try {
+            const registeredCount = await User.countDocuments();
+            let analyticsDoc = await Analytics.findOne();
+            if (!analyticsDoc) {
+                analyticsDoc = new Analytics({ hoursUsed: 124, completedRevenue: 0 });
+                await analyticsDoc.save();
+            }
+            callback({
+                registeredCount,
+                activeOnline: activeUsers.size,
+                hoursUsed: analyticsDoc.hoursUsed,
+                revenue: `$${analyticsDoc.completedRevenue.toFixed(2)}`
+            });
+        } catch (err) {
+            callback({ registeredCount: 0, activeOnline: 1, hoursUsed: 0, revenue: '$0.00' });
+        }
+    });
+
+    socket.on('disconnect', () => {
+        activeUsers.delete(socket.id);
+        broadcastActiveUsers();
+        console.log('Client disconnected:', socket.id);
+    });
 });
 
+function broadcastActiveUsers() {
+    const users = Array.from(activeUsers.values());
+    io.emit('users:update', users);
+}
+
+async function broadcastLeaderboard() {
+    const topUsers = await User.find().sort({ score: -1 }).limit(10);
+    io.emit('leaderboard:update', topUsers);
+}
+
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+    console.log(`StarFam server running on port ${PORT}`);
 });
